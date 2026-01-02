@@ -11,17 +11,11 @@ namespace storage {
 /// Wraps a HashMap and provides high-level storage operations.
 class Shard {
 public:
-  Shard() : data_store_(10000) {} // Default small capacity for testing
+  Shard();
 
-  void set(std::string_view key, std::string_view value) {
-    data_store_.put(key, value);
-  }
-
-  std::optional<std::string> get(std::string_view key) const {
-    return data_store_.get(key);
-  }
-
-  bool del(std::string_view key) { return data_store_.del(key); }
+  void set(std::string_view key, std::string_view value);
+  std::optional<std::string> get(std::string_view key) const;
+  bool del(std::string_view key);
 
 private:
   HashMap data_store_;

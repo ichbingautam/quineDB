@@ -1,4 +1,19 @@
 #include "shard.hpp"
 
-// Currently header-only implementation, but file needed for CMake library
-// target. Future logic: WAL appending, persistence.
+namespace quine {
+namespace storage {
+
+Shard::Shard() : data_store_(10000) {}
+
+void Shard::set(std::string_view key, std::string_view value) {
+  data_store_.put(key, value);
+}
+
+std::optional<std::string> Shard::get(std::string_view key) const {
+  return data_store_.get(key);
+}
+
+bool Shard::del(std::string_view key) { return data_store_.del(key); }
+
+} // namespace storage
+} // namespace quine
