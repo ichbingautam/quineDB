@@ -4,6 +4,7 @@
 #include "../core/topology.hpp" // [NEW]
 #include "resp_parser.hpp"
 #include <cstddef>
+#include <functional> // [NEW]
 #include <memory>
 #include <string>
 #include <vector>
@@ -29,6 +30,11 @@ public:
   Connection &operator=(const Connection &) = delete;
 
   int get_fd() const { return fd_; }
+  uint32_t get_id() const { return id_; }
+
+  void set_on_disconnect(std::function<void(uint32_t)> cb) {
+    on_disconnect_ = cb;
+  } // [NEW] // [NEW]
 
   // Start processing (post initial read)
   void start(core::IoContext &ctx);
@@ -55,10 +61,12 @@ public:
 
 private:
   int fd_;
+  uint32_t id_; // [NEW]
   std::vector<char> read_buffer_;
   core::Topology &topology_;
   size_t core_id_;
   RespParser parser_;
+  std::function<void(uint32_t)> on_disconnect_; // [NEW]
 
   // Helper to execute parsed command
   std::string execute_command(const std::vector<std::string> &args);

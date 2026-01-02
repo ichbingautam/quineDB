@@ -12,7 +12,8 @@ enum class MessageType { REQUEST, RESPONSE };
 
 struct Message {
   MessageType type;
-  uint32_t conn_id; // To route response back to the correct connection
+  size_t origin_core_id; // [NEW] To route response back to the correct core
+  uint32_t conn_id;      // To route response back to the correct connection
   std::string key;
   std::vector<std::string> args; // For the command (e.g. SET key value)
 

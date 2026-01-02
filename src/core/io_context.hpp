@@ -8,8 +8,6 @@
 #include <vector>
 
 namespace quine {
-
-namespace quine {
 namespace core {
 
 class IoContext {
@@ -64,10 +62,20 @@ public:
   /// @brief Notify the event loop (wake up from wait).
   void notify();
 
+  /// @brief Submit a read request for the eventfd/pipe (internal use).
+  void submit_notification_read(); // [NEW]
+
 private:
   struct io_uring ring_;
   int event_fd_ = -1;  // Read end
   int notify_fd_ = -1; // Write end
+
+  // Notification handling
+  std::function<void()> notification_handler_; // [NEW]
+
+  struct NotificationOp; // [NEW] Forward decl
+  friend struct NotificationOp;
+  std::unique_ptr<NotificationOp> notification_op_; // [NEW]
 
   // Setup notification mechanism
   void setup_event_fd();

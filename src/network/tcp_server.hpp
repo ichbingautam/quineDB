@@ -3,12 +3,19 @@
 #include "../core/io_context.hpp"
 #include "../core/topology.hpp"
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
+
 // Forward decl
 namespace quine {
 namespace core {
 struct Operation;
+}
+} // namespace quine
+namespace quine {
+namespace network {
+class Connection;
 }
 } // namespace quine
 
@@ -32,12 +39,24 @@ public:
   /// Submits the initial accept request to the io_uring.
   void start();
 
+  /// @brief Set callback for when a new connection is established
+  void set_on_connect(std::function<void(Connection *)> cb) {
+    on_connect_ = cb;
+  }
+
+  /// @brief Set callback for connection disconnection
+  void set_on_disconnect(std::function<void(uint32_t)> cb) {
+    on_disconnect_ = cb;
+  }
+
 private:
   core::IoContext &io_;
   core::Topology &topology_;
   size_t core_id_;
   int port_;
   int server_fd_;
+  std::function<void(Connection *)> on_connect_;
+  std::function<void(uint32_t)> on_disconnect_;
 
   void setup_listener();
   void submit_accept();

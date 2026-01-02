@@ -25,8 +25,11 @@ struct Connection::WriteOp : public core::Operation {
 
 // --- Connection Implementation ---
 
+// Static counter for connection IDs
+static std::atomic<uint32_t> next_conn_id{1};
+
 Connection::Connection(int fd, core::Topology &topology, size_t core_id)
-    : fd_(fd), topology_(topology), core_id_(core_id) {
+    : fd_(fd), id_(next_conn_id++), topology_(topology), core_id_(core_id) {
   // Pre-allocate decent buffer
   read_buffer_.reserve(4096);
 }
@@ -67,8 +70,12 @@ void Connection::handle_read(int res, core::IoContext &ctx) {
   if (res <= 0) {
     // EOF or Error
     // std::cerr << "Connection " << fd_ << " closed or error: " << res <<
-    // std::endl; In a real server, we would notify the server to destroy this
-    // connection. For now, we effectively leak/stop processing.
+    // std::cerr << "Connection " << fd_ << " closed or error: " << res <<
+    // std::endl;
+    if (on_disconnect_)
+      on_disconnect_(id_);
+    delete this; // Suicide: unsafe in real world but standard for this simple
+                 // pattern
     return;
   }
 
@@ -132,8 +139,19 @@ std::string Connection::execute_command(const std::vector<std::string> &args) {
       topology_.get_shard(core_id_)->set(args[1], args[2]);
       return "+OK\r\n";
     } else {
-      // TODO: Implement ITC forwarding
-      return "-ERR redirection not implemented yet\r\n";
+      // Forwarding Logic
+      size_t target_core = topology_.get_target_core(args[1]);
+
+      core::Message msg;
+      msg.type = core::MessageType::REQUEST;
+      msg.conn_id = 0; // TODO: Connection ID map needed for async response
+      msg.key = args[1];
+      msg.args = args;
+
+      topology_.get_channel(target_core)->push(msg);
+      topology_.notify_core(target_core);
+
+      return "+QUEUED_FORWARD\r\n";
     }
   } else if (cmd == "GET") {
     if (args.size() != 2)
@@ -147,8 +165,19 @@ std::string Connection::execute_command(const std::vector<std::string> &args) {
         return "$-1\r\n"; // Null bulk string
       }
     } else {
-      // TODO: Implement ITC forwarding
-      return "-ERR redirection not implemented yet\r\n";
+      // Forwarding Logic
+      size_t target_core = topology_.get_target_core(args[1]);
+
+      core::Message msg;
+      msg.type = core::MessageType::REQUEST;
+      msg.conn_id = 0;
+      msg.key = args[1];
+      msg.args = args;
+
+      topology_.get_channel(target_core)->push(msg);
+      topology_.notify_core(target_core);
+
+      return "+QUEUED_FORWARD\r\n";
     }
   } else if (cmd == "DEL") {
     if (args.size() != 2)
@@ -158,7 +187,19 @@ std::string Connection::execute_command(const std::vector<std::string> &args) {
       bool deleted = topology_.get_shard(core_id_)->del(args[1]);
       return ":" + std::to_string(deleted ? 1 : 0) + "\r\n";
     } else {
-      return "-ERR redirection not implemented yet\r\n";
+      // Forwarding Logic
+      size_t target_core = topology_.get_target_core(args[1]);
+
+      core::Message msg;
+      msg.type = core::MessageType::REQUEST;
+      msg.conn_id = 0;
+      msg.key = args[1];
+      msg.args = std::vector<std::string>{cmd, args[1]}; // Re-construct
+
+      topology_.get_channel(target_core)->push(msg);
+      topology_.notify_core(target_core);
+
+      return "+QUEUED_FORWARD\r\n";
     }
   } else if (cmd == "PING") {
     return "+PONG\r\n";

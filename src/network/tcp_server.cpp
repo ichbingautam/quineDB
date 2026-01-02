@@ -89,6 +89,10 @@ void TcpServer::handle_accept(int fd) {
   // Create a new Connection
   auto conn = std::make_unique<Connection>(fd, topology_, core_id_);
 
+  if (on_connect_) {
+    on_connect_(conn.get());
+  }
+
   // START reading from the connection
   conn->start(io_);
 
