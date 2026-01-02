@@ -92,7 +92,7 @@ void TcpServer::handle_accept(int fd) {
   auto conn = std::make_unique<Connection>(fd, shard_);
 
   // START reading from the connection
-  // conn->start(io_); // We need to add this method and IO wiring to Connection
+  conn->start(io_);
 
   // Keeping it alive (hacky for now, need a container in TcpServer)
   // connections_.emplace_back(std::move(conn));
