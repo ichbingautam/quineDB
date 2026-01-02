@@ -6,7 +6,7 @@ add_executable(quine-server main.cpp)
 target_link_libraries(quine-server PRIVATE Threads::Threads quine-core quine-network quine-storage)
 
 # Subdirectories for libraries
-add_subdirectory(common)
+# add_subdirectory(common)
 add_subdirectory(core)
 add_subdirectory(network)
 add_subdirectory(storage) # [NEW] Storage Layer

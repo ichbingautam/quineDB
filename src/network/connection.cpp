@@ -1,4 +1,6 @@
 #include "connection.hpp"
+#include "../core/io_context.hpp" // [NEW] Needed for full definition
+#include "liburing.h"
 #include <cctype> // for std::toupper
 #include <cstring>
 #include <iostream>
@@ -44,7 +46,7 @@ void Connection::resize_buffer(size_t size) { read_buffer_.resize(size); }
 
 void Connection::start(core::IoContext &ctx) {
   read_op_ = std::make_unique<ReadOp>(this, ctx);
-  // write_op_ lazily created or pooled if needed
+  write_op_ = std::make_unique<WriteOp>(this, ctx);
 
   submit_read(ctx);
 }
@@ -56,26 +58,22 @@ void Connection::submit_read(core::IoContext &ctx) {
 }
 
 void Connection::submit_write(core::IoContext &ctx, std::vector<char> data) {
-  // TODO: Implement proper async write with queuing.
-  // For V0, we might just write synchronously or fire-and-forget if possible,
-  // but io_uring write is preferred.
-  // Since we don't have a WriteOp ready to manage the lifetime of 'data',
-  // we will stick to synchronous write for the response to ensure correctness
-  // for now.
+  write_queue_.push_back(std::move(data));
 
-  ::write(fd_, data.data(), data.size());
+  if (!is_writing_) {
+    is_writing_ = true;
+    auto &current_data = write_queue_.front();
+    struct io_uring_sqe *sqe = ctx.get_sqe();
+    io_uring_prep_write(sqe, fd_, current_data.data(), current_data.size(), 0);
+    io_uring_sqe_set_data(sqe, write_op_.get());
+  }
 }
 
 void Connection::handle_read(int res, core::IoContext &ctx) {
   if (res <= 0) {
-    // EOF or Error
-    // std::cerr << "Connection " << fd_ << " closed or error: " << res <<
-    // std::cerr << "Connection " << fd_ << " closed or error: " << res <<
-    // std::endl;
     if (on_disconnect_)
       on_disconnect_(id_);
-    delete this; // Suicide: unsafe in real world but standard for this simple
-                 // pattern
+    delete this;
     return;
   }
 
@@ -91,9 +89,25 @@ void Connection::handle_read(int res, core::IoContext &ctx) {
 }
 
 void Connection::handle_write(int res, core::IoContext &ctx) {
-  // Check write result
   if (res < 0) {
-    std::cerr << "Write error: " << res << std::endl;
+    std::cerr << "Write error: " << -res << std::endl;
+    if (on_disconnect_)
+      on_disconnect_(id_);
+    delete this;
+    return;
+  }
+
+  if (!write_queue_.empty()) {
+    write_queue_.pop_front();
+  }
+
+  if (!write_queue_.empty()) {
+    auto &current_data = write_queue_.front();
+    struct io_uring_sqe *sqe = ctx.get_sqe();
+    io_uring_prep_write(sqe, fd_, current_data.data(), current_data.size(), 0);
+    io_uring_sqe_set_data(sqe, write_op_.get());
+  } else {
+    is_writing_ = false;
   }
 }
 
@@ -144,14 +158,16 @@ std::string Connection::execute_command(const std::vector<std::string> &args) {
 
       core::Message msg;
       msg.type = core::MessageType::REQUEST;
-      msg.conn_id = 0; // TODO: Connection ID map needed for async response
+      msg.origin_core_id = core_id_;
+      msg.conn_id = id_;
       msg.key = args[1];
-      msg.args = args;
+      // msg.args = args;
+      msg.args = std::vector<std::string>{cmd, args[1], args[2]};
 
       topology_.get_channel(target_core)->push(msg);
       topology_.notify_core(target_core);
 
-      return "+QUEUED_FORWARD\r\n";
+      return ""; // Async response will follow
     }
   } else if (cmd == "GET") {
     if (args.size() != 2)
@@ -170,14 +186,16 @@ std::string Connection::execute_command(const std::vector<std::string> &args) {
 
       core::Message msg;
       msg.type = core::MessageType::REQUEST;
-      msg.conn_id = 0;
+      msg.origin_core_id = core_id_;
+      msg.conn_id = id_;
       msg.key = args[1];
-      msg.args = args;
+      // msg.args = args;
+      msg.args = std::vector<std::string>{cmd, args[1]};
 
       topology_.get_channel(target_core)->push(msg);
       topology_.notify_core(target_core);
 
-      return "+QUEUED_FORWARD\r\n";
+      return ""; // Async response will follow
     }
   } else if (cmd == "DEL") {
     if (args.size() != 2)
@@ -192,14 +210,15 @@ std::string Connection::execute_command(const std::vector<std::string> &args) {
 
       core::Message msg;
       msg.type = core::MessageType::REQUEST;
-      msg.conn_id = 0;
+      msg.origin_core_id = core_id_;
+      msg.conn_id = id_;
       msg.key = args[1];
       msg.args = std::vector<std::string>{cmd, args[1]}; // Re-construct
 
       topology_.get_channel(target_core)->push(msg);
       topology_.notify_core(target_core);
 
-      return "+QUEUED_FORWARD\r\n";
+      return ""; // Async response will follow
     }
   } else if (cmd == "PING") {
     return "+PONG\r\n";

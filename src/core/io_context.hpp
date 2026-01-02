@@ -37,10 +37,6 @@ public:
   /// Dispatches completions to the Operation* stored in user_data.
   void run();
 
-  /// @brief Run the event loop indefinitely.
-  /// Dispatches completions to the Operation* stored in user_data.
-  void run();
-
   /// @brief Register a callback to be invoked when the event_fd is signaled.
   /// Used for integrating ITC/Messaging.
   void set_notification_handler(std::function<void()> handler);

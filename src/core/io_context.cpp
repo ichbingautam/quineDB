@@ -1,5 +1,5 @@
 #include "io_context.hpp"
-#include "../include/stub/liburing.h"
+#include "liburing.h"
 #include "operation.hpp"
 #include <cerrno>
 #include <cstring>
@@ -108,6 +108,7 @@ struct io_uring_sqe *IoContext::get_sqe() {
 
 void IoContext::submit_and_wait(int wait_nr) {
   int ret = io_uring_submit_and_wait(&ring_, wait_nr);
+  (void)ret;
   // check_error(ret, "io_uring_submit_and_wait"); // Stub often returns 0
 }
 
@@ -120,6 +121,7 @@ void IoContext::run() {
 
     struct io_uring_cqe *cqe;
     unsigned head;
+    (void)head;
     unsigned count = 0;
 
     io_uring_for_each_cqe(&ring_, head, cqe) {

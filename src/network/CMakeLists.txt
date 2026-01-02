@@ -1,5 +1,7 @@
 add_library(quine-network
     tcp_server.cpp
+    connection.cpp
+    resp_parser.cpp
 )
 
 target_link_libraries(quine-network PUBLIC

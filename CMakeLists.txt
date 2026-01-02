@@ -31,6 +31,22 @@ include_directories(include)
 if(APPLE)
     include_directories(include/stub)
     add_definitions(-DQUINE_MOCK_URING)
+
+    # Stub target for Mac
+    add_library(LibUring INTERFACE)
+    add_library(LibUring::LibUring ALIAS LibUring)
+    target_include_directories(LibUring INTERFACE ${CMAKE_SOURCE_DIR}/include/stub)
+else()
+    # On Linux, find the real library
+    # find_package(LibUring REQUIRED)
+    # For now, let's just make it required if not Apple, but we might need a FindLibUring.cmake
+    # Assuming pkg-config or standard lookup
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LibUring REQUIRED liburing)
+
+    add_library(LibUring::LibUring INTERFACE IMPORTED)
+    target_include_directories(LibUring::LibUring INTERFACE ${LibUring_INCLUDE_DIRS})
+    target_link_libraries(LibUring::LibUring INTERFACE ${LibUring_LIBRARIES})
 endif()
 
 # Dependencies (Example stub)

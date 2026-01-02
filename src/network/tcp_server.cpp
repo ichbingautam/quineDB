@@ -21,7 +21,7 @@ struct TcpServer::AcceptOp : public core::Operation {
 
 TcpServer::TcpServer(core::IoContext &io, int port, core::Topology &top,
                      size_t core_id)
-    : io_(io), port_(port), topology_(top), core_id_(core_id), server_fd_(-1) {
+    : io_(io), topology_(top), core_id_(core_id), port_(port), server_fd_(-1) {
   accept_op_ = std::make_unique<AcceptOp>(this);
   setup_listener();
 }
@@ -40,10 +40,15 @@ void TcpServer::setup_listener() {
 
   int opt = 1;
   // SO_REUSEPORT is crucial for thread-per-core scalability
-  if (setsockopt(server_fd_, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
-                 sizeof(opt)) < 0) {
+  if (setsockopt(server_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
     throw std::system_error(errno, std::generic_category(),
-                            "setsockopt failed");
+                            "setsockopt(SO_REUSEADDR) failed");
+  }
+
+  // SO_REUSEPORT is crucial for thread-per-core scalability
+  if (setsockopt(server_fd_, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0) {
+    throw std::system_error(errno, std::generic_category(),
+                            "setsockopt(SO_REUSEPORT) failed");
   }
 
   struct sockaddr_in addr;
@@ -88,6 +93,10 @@ void TcpServer::handle_accept(int fd) {
 
   // Create a new Connection
   auto conn = std::make_unique<Connection>(fd, topology_, core_id_);
+
+  if (on_disconnect_) {
+    conn->set_on_disconnect(on_disconnect_);
+  }
 
   if (on_connect_) {
     on_connect_(conn.get());

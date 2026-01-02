@@ -3,6 +3,7 @@
 #if defined(__APPLE__) || defined(__MACH__)
 
 #include <cstdint>
+#include <sys/socket.h> // [NEW] for sockaddr
 #include <unistd.h>
 
 // Mock structures to satisfy compiler on macOS
@@ -47,6 +48,37 @@ inline void io_uring_sqe_set_data(struct io_uring_sqe *sqe, void *data) {
 inline void *io_uring_cqe_get_data(const struct io_uring_cqe *cqe) {
   return (void *)cqe->user_data;
 }
+
+// [NEW] Prep functions
+inline void io_uring_prep_accept(struct io_uring_sqe *sqe, int fd,
+                                 struct sockaddr *addr, socklen_t *addrlen,
+                                 int flags) {
+  sqe->opcode = IORING_OP_ACCEPT;
+  sqe->fd = fd;
+  sqe->addr = (uint64_t)addr;
+  (void)addrlen;
+  (void)flags;
+}
+
+inline void io_uring_prep_read(struct io_uring_sqe *sqe, int fd, void *buf,
+                               unsigned nbytes, uint64_t offset) {
+  sqe->opcode = IORING_OP_READ;
+  sqe->fd = fd;
+  sqe->addr = (uint64_t)buf;
+  sqe->len = nbytes;
+  (void)offset;
+}
+
+inline void io_uring_prep_write(struct io_uring_sqe *sqe, int fd,
+                                const void *buf, unsigned nbytes,
+                                uint64_t offset) {
+  sqe->opcode = IORING_OP_WRITE;
+  sqe->fd = fd;
+  sqe->addr = (uint64_t)buf;
+  sqe->len = nbytes;
+  (void)offset;
+}
+
 // Iterators stub - hard to mock perfectly with macros/inline, typically handled
 // by loops
 #define io_uring_for_each_cqe(ring, head, cqe)                                 \
