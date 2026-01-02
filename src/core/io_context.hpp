@@ -43,8 +43,21 @@ public:
   // Accessors
   struct io_uring *get_ring() { return &ring_; }
 
+  /// @brief Helper for cross-thread wakeups.
+  /// On Linux: eventfd. On macOS: pipe.
+  /// Returns the read-end FD.
+  int get_event_fd() const { return event_fd_; }
+
+  /// @brief Notify the event loop (wake up from wait).
+  void notify();
+
 private:
   struct io_uring ring_;
+  int event_fd_ = -1;  // Read end
+  int notify_fd_ = -1; // Write end
+
+  // Setup notification mechanism
+  void setup_event_fd();
 
   // Check ring status
   void check_error(int result, const char *msg);

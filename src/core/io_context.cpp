@@ -13,9 +13,43 @@ IoContext::IoContext(unsigned entries, uint32_t flags) {
     throw std::system_error(-ret, std::generic_category(),
                             "io_uring_queue_init failed");
   }
+  setup_event_fd();
 }
 
-IoContext::~IoContext() { io_uring_queue_exit(&ring_); }
+IoContext::~IoContext() {
+  if (event_fd_ >= 0)
+    close(event_fd_);
+  if (notify_fd_ >= 0)
+    close(notify_fd_);
+  io_uring_queue_exit(&ring_);
+}
+
+void IoContext::setup_event_fd() {
+#ifdef __linux__
+  // event_fd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+  // notify_fd_ = event_fd_; // Same FD for eventfd
+#else
+  // Fallback to pipe for macOS/BSD
+  int fds[2];
+  if (pipe(fds) < 0) {
+    throw std::system_error(errno, std::generic_category(), "pipe failed");
+  }
+  event_fd_ = fds[0];
+  notify_fd_ = fds[1];
+
+  // Set non-blocking
+  fcntl(event_fd_, F_SETFL, O_NONBLOCK);
+  fcntl(notify_fd_, F_SETFL, O_NONBLOCK);
+#endif
+}
+
+void IoContext::notify() {
+  uint64_t u = 1;
+  // On pipe, we write 8 bytes to match eventfd semantics roughly
+  if (write(notify_fd_, &u, sizeof(u)) < 0) {
+    // Ignore EAGAIN
+  }
+}
 
 struct io_uring_sqe *IoContext::get_sqe() {
   struct io_uring_sqe *sqe = io_uring_get_sqe(&ring_);

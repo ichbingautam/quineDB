@@ -1,5 +1,6 @@
 add_library(quine-core
     io_context.cpp
+    router.cpp
 )
 
 target_link_libraries(quine-core PUBLIC
