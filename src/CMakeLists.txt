@@ -1,9 +1,15 @@
-add_executable(zephyra-server main.cpp)
+# Main entry point
+add_executable(quine-server main.cpp)
 
-target_include_directories(zephyra-server PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
+# Link core libraries (to be created in subdirs)
+# target_link_libraries(quine-server PRIVATE quine-core quine-network)
+target_link_libraries(quine-server PRIVATE Threads::Threads quine-core quine-network quine-storage)
 
-# Link threads (needed for std::thread)
-find_package(Threads REQUIRED)
-target_link_libraries(zephyra-server PRIVATE Threads::Threads)
+# Subdirectories for libraries
+add_subdirectory(common)
+add_subdirectory(core)
+add_subdirectory(network)
+add_subdirectory(storage) # [NEW] Storage Layer
+# add_subdirectory(storage)
+# add_subdirectory(consensus)
+# add_subdirectory(api)

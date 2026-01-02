@@ -1,0 +1,11 @@
+add_library(quine-network
+    tcp_server.cpp
+)
+
+target_link_libraries(quine-network PUBLIC
+    quine-core
+)
+
+target_include_directories(quine-network PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
