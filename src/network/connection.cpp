@@ -25,7 +25,8 @@ struct Connection::WriteOp : public core::Operation {
 
 // --- Connection Implementation ---
 
-Connection::Connection(int fd, storage::Shard *shard) : fd_(fd), shard_(shard) {
+Connection::Connection(int fd, core::Topology &topology, size_t core_id)
+    : fd_(fd), topology_(topology), core_id_(core_id) {
   // Pre-allocate decent buffer
   read_buffer_.reserve(4096);
 }
@@ -125,23 +126,40 @@ std::string Connection::execute_command(const std::vector<std::string> &args) {
   if (cmd == "SET") {
     if (args.size() != 3)
       return "-ERR wrong number of arguments for 'set'\r\n";
-    shard_->set(args[1], args[2]);
-    return "+OK\r\n";
+
+    // Check routing
+    if (topology_.is_local(core_id_, args[1])) {
+      topology_.get_shard(core_id_)->set(args[1], args[2]);
+      return "+OK\r\n";
+    } else {
+      // TODO: Implement ITC forwarding
+      return "-ERR redirection not implemented yet\r\n";
+    }
   } else if (cmd == "GET") {
     if (args.size() != 2)
       return "-ERR wrong number of arguments for 'get'\r\n";
 
-    auto val = shard_->get(args[1]);
-    if (val) {
-      return "$" + std::to_string(val->size()) + "\r\n" + *val + "\r\n";
+    if (topology_.is_local(core_id_, args[1])) {
+      auto val = topology_.get_shard(core_id_)->get(args[1]);
+      if (val) {
+        return "$" + std::to_string(val->size()) + "\r\n" + *val + "\r\n";
+      } else {
+        return "$-1\r\n"; // Null bulk string
+      }
     } else {
-      return "$-1\r\n"; // Null bulk string
+      // TODO: Implement ITC forwarding
+      return "-ERR redirection not implemented yet\r\n";
     }
   } else if (cmd == "DEL") {
     if (args.size() != 2)
       return "-ERR wrong number of arguments for 'del'\r\n";
-    bool deleted = shard_->del(args[1]);
-    return ":" + std::to_string(deleted ? 1 : 0) + "\r\n";
+
+    if (topology_.is_local(core_id_, args[1])) {
+      bool deleted = topology_.get_shard(core_id_)->del(args[1]);
+      return ":" + std::to_string(deleted ? 1 : 0) + "\r\n";
+    } else {
+      return "-ERR redirection not implemented yet\r\n";
+    }
   } else if (cmd == "PING") {
     return "+PONG\r\n";
   }

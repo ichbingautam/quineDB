@@ -1,10 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <functional> // [NEW]
 #include <liburing.h>
 #include <memory>
 #include <system_error>
 #include <vector>
+
+namespace quine {
 
 namespace quine {
 namespace core {
@@ -40,6 +43,10 @@ public:
   /// Dispatches completions to the Operation* stored in user_data.
   void run();
 
+  /// @brief Register a callback to be invoked when the event_fd is signaled.
+  /// Used for integrating ITC/Messaging.
+  void set_notification_handler(std::function<void()> handler);
+
   // Accessors
   struct io_uring *get_ring() { return &ring_; }
 
@@ -47,6 +54,12 @@ public:
   /// On Linux: eventfd. On macOS: pipe.
   /// Returns the read-end FD.
   int get_event_fd() const { return event_fd_; }
+
+  /// @brief Helper for cross-thread wakeups.
+  /// On Linux: eventfd. On macOS: pipe.
+  /// Returns the write-end FD (to be used by other threads to wake this one
+  /// up).
+  int get_notify_fd() const { return notify_fd_; }
 
   /// @brief Notify the event loop (wake up from wait).
   void notify();

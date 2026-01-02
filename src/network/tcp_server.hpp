@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../core/io_context.hpp"
-#include "../storage/shard.hpp"
+#include "../core/topology.hpp"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -20,7 +20,8 @@ namespace network {
 /// can listen on the same port via SO_REUSEPORT.
 class TcpServer {
 public:
-  TcpServer(core::IoContext &io, int port, storage::Shard *shard);
+  TcpServer(core::IoContext &io, int port, core::Topology &topology,
+            size_t core_id);
   ~TcpServer();
 
   // Delete copy/move
@@ -33,7 +34,8 @@ public:
 
 private:
   core::IoContext &io_;
-  storage::Shard *shard_;
+  core::Topology &topology_;
+  size_t core_id_;
   int port_;
   int server_fd_;
 

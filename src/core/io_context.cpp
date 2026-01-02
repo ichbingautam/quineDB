@@ -1,11 +1,36 @@
 #include "io_context.hpp"
 #include "../include/stub/liburing.h"
 #include "operation.hpp"
+#include <cerrno>
+#include <cstring>
+#include <fcntl.h>
 #include <iostream>
 #include <stdexcept>
+#include <unistd.h>
 
 namespace quine {
 namespace core {
+
+struct IoContext::NotificationOp : public Operation {
+  IoContext *ctx;
+  uint64_t buffer = 0; // buffer for eventfd/pipe read
+  explicit NotificationOp(IoContext *c) : ctx(c) {}
+
+  void complete(int res) override {
+    // Log error if any, but ignoring EAGAIN is fine-ish
+    if (res < 0) {
+      // std::cerr << "Notification read error: " << -res << std::endl;
+    }
+
+    // Invoke handler
+    if (ctx->notification_handler_) {
+      ctx->notification_handler_();
+    }
+
+    // Resubmit to stay active
+    ctx->submit_notification_read();
+  }
+};
 
 IoContext::IoContext(unsigned entries, uint32_t flags) {
   int ret = io_uring_queue_init(entries, &ring_, flags);
@@ -14,6 +39,7 @@ IoContext::IoContext(unsigned entries, uint32_t flags) {
                             "io_uring_queue_init failed");
   }
   setup_event_fd();
+  notification_op_ = std::make_unique<NotificationOp>(this);
 }
 
 IoContext::~IoContext() {
@@ -51,6 +77,22 @@ void IoContext::notify() {
   }
 }
 
+void IoContext::set_notification_handler(std::function<void()> handler) {
+  notification_handler_ = handler;
+}
+
+void IoContext::submit_notification_read() {
+  if (event_fd_ < 0)
+    return;
+
+  struct io_uring_sqe *sqe = get_sqe();
+  // Use read on the event_fd
+  // NotificationOp has the buffer member
+  io_uring_prep_read(sqe, event_fd_, &notification_op_->buffer,
+                     sizeof(uint64_t), 0);
+  io_uring_sqe_set_data(sqe, notification_op_.get());
+}
+
 struct io_uring_sqe *IoContext::get_sqe() {
   struct io_uring_sqe *sqe = io_uring_get_sqe(&ring_);
   if (!sqe) {
@@ -70,6 +112,9 @@ void IoContext::submit_and_wait(int wait_nr) {
 }
 
 void IoContext::run() {
+  // Submit the initial notification listener
+  submit_notification_read();
+
   while (true) {
     submit_and_wait(1);
 

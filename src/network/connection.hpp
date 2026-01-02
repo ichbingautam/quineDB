@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../core/operation.hpp"
-#include "../storage/shard.hpp"
+#include "../core/topology.hpp" // [NEW]
 #include "resp_parser.hpp"
 #include <cstddef>
 #include <memory>
@@ -22,7 +22,7 @@ namespace network {
 /// Manages the file descriptor and the read/write data buffers.
 class Connection {
 public:
-  explicit Connection(int fd, storage::Shard *shard);
+  explicit Connection(int fd, core::Topology &topology, size_t core_id);
   ~Connection();
 
   Connection(const Connection &) = delete;
@@ -56,7 +56,8 @@ public:
 private:
   int fd_;
   std::vector<char> read_buffer_;
-  storage::Shard *shard_;
+  core::Topology &topology_;
+  size_t core_id_;
   RespParser parser_;
 
   // Helper to execute parsed command

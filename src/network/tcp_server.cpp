@@ -19,8 +19,9 @@ struct TcpServer::AcceptOp : public core::Operation {
   void complete(int res) override { server->handle_accept(res); }
 };
 
-TcpServer::TcpServer(core::IoContext &io, int port, storage::Shard *shard)
-    : io_(io), port_(port), shard_(shard), server_fd_(-1) {
+TcpServer::TcpServer(core::IoContext &io, int port, core::Topology &top,
+                     size_t core_id)
+    : io_(io), port_(port), topology_(top), core_id_(core_id), server_fd_(-1) {
   accept_op_ = std::make_unique<AcceptOp>(this);
   setup_listener();
 }
@@ -86,16 +87,12 @@ void TcpServer::handle_accept(int fd) {
   // std::cout << "Accepted connection fd: " << fd << std::endl;
 
   // Create a new Connection
-  // TODO: Manage lifecycle properly. For now we leak unique_ptrs or need a
-  // container. In a real server, Connection might report 'closed' back to
-  // Server to be removed.
-  auto conn = std::make_unique<Connection>(fd, shard_);
+  auto conn = std::make_unique<Connection>(fd, topology_, core_id_);
 
   // START reading from the connection
   conn->start(io_);
 
   // Keeping it alive (hacky for now, need a container in TcpServer)
-  // connections_.emplace_back(std::move(conn));
   conn.release(); // Leaking for V0 proof of concept to avoid immediate
                   // destruction
 
