@@ -1,4 +1,6 @@
 #include "tcp_server.hpp"
+#include "../core/operation.hpp"
+#include "../network/connection.hpp"
 #include <cstring>
 #include <iostream>
 #include <netinet/in.h>
@@ -9,8 +11,17 @@
 namespace quine {
 namespace network {
 
+struct TcpServer::AcceptOp : public core::Operation {
+  TcpServer *server;
+
+  explicit AcceptOp(TcpServer *s) : server(s) {}
+
+  void complete(int res) override { server->handle_accept(res); }
+};
+
 TcpServer::TcpServer(core::IoContext &io, int port, storage::Shard *shard)
     : io_(io), port_(port), shard_(shard), server_fd_(-1) {
+  accept_op_ = std::make_unique<AcceptOp>(this);
   setup_listener();
 }
 
@@ -55,17 +66,41 @@ void TcpServer::start() {
 }
 
 void TcpServer::submit_accept() {
-  // TODO: We need a struct to track this detailed operation context (Token)
-  // For now, using raw io_uring_prep_accept
-
   struct io_uring_sqe *sqe = io_.get_sqe();
 
-  // In a real impl, we'd pass a pointer to a struct holding the client_addr/len
-  // buffers io_uring_prep_accept(sqe, server_fd_, ...);
-  // io_uring_sqe_set_data(sqe, this); // or a special AcceptToken
+  // We need to pass the address structure to accept if we want client info
+  // For now, pass nullptr/0 if we don't care, or add members to AcceptOp if we
+  // do.
+  io_uring_prep_accept(sqe, server_fd_, nullptr, nullptr, 0);
+  io_uring_sqe_set_data(sqe, accept_op_.get());
+}
 
-  // Placeholder to make it compile with logic
-  (void)sqe;
+void TcpServer::handle_accept(int fd) {
+  if (fd < 0) {
+    std::cerr << "Accept error: " << -fd << std::endl;
+    // Resubmit accept to keep server alive
+    submit_accept();
+    return;
+  }
+
+  // std::cout << "Accepted connection fd: " << fd << std::endl;
+
+  // Create a new Connection
+  // TODO: Manage lifecycle properly. For now we leak unique_ptrs or need a
+  // container. In a real server, Connection might report 'closed' back to
+  // Server to be removed.
+  auto conn = std::make_unique<Connection>(fd, shard_);
+
+  // START reading from the connection
+  // conn->start(io_); // We need to add this method and IO wiring to Connection
+
+  // Keeping it alive (hacky for now, need a container in TcpServer)
+  // connections_.emplace_back(std::move(conn));
+  conn.release(); // Leaking for V0 proof of concept to avoid immediate
+                  // destruction
+
+  // Accept next
+  submit_accept();
 }
 
 } // namespace network

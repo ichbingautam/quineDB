@@ -3,7 +3,14 @@
 #include "../core/io_context.hpp"
 #include "../storage/shard.hpp"
 #include <cstdint>
+#include <memory>
 #include <string>
+// Forward decl
+namespace quine {
+namespace core {
+struct Operation;
+}
+} // namespace quine
 
 namespace quine {
 namespace network {
@@ -32,6 +39,12 @@ private:
 
   void setup_listener();
   void submit_accept();
+
+  // The operation object that handles the completion of the accept call
+  struct AcceptOp;
+  std::unique_ptr<AcceptOp> accept_op_;
+
+  void handle_accept(int fd);
 };
 
 } // namespace network

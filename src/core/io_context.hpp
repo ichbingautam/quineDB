@@ -32,6 +32,14 @@ public:
   /// @param wait_nr Minimum number of completions to wait for (default 1).
   void submit_and_wait(int wait_nr = 1);
 
+  /// @brief Run the event loop indefinitely.
+  /// Dispatches completions to the Operation* stored in user_data.
+  void run();
+
+  /// @brief Run the event loop indefinitely.
+  /// Dispatches completions to the Operation* stored in user_data.
+  void run();
+
   // Accessors
   struct io_uring *get_ring() { return &ring_; }
 

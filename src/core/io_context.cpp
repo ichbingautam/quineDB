@@ -1,4 +1,6 @@
 #include "io_context.hpp"
+#include "../include/stub/liburing.h"
+#include "operation.hpp"
 #include <iostream>
 #include <stdexcept>
 
@@ -30,9 +32,28 @@ struct io_uring_sqe *IoContext::get_sqe() {
 
 void IoContext::submit_and_wait(int wait_nr) {
   int ret = io_uring_submit_and_wait(&ring_, wait_nr);
-  if (ret < 0) {
-    // -EAGAIN or -EINTR are usually fine, but strictly logging here
-    std::cerr << "io_uring_submit_and_wait error: " << -ret << std::endl;
+  // check_error(ret, "io_uring_submit_and_wait"); // Stub often returns 0
+}
+
+void IoContext::run() {
+  while (true) {
+    submit_and_wait(1);
+
+    struct io_uring_cqe *cqe;
+    unsigned head;
+    unsigned count = 0;
+
+    io_uring_for_each_cqe(&ring_, head, cqe) {
+      count++;
+      if (cqe->user_data) {
+        auto *op = reinterpret_cast<Operation *>(cqe->user_data);
+        op->complete(cqe->res);
+      }
+    }
+
+    if (count > 0) {
+      io_uring_cq_advance(&ring_, count);
+    }
   }
 }
 
