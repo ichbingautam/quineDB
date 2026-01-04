@@ -2,22 +2,51 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake liburing-dev python3 build-essential
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Run Integration Tests
+        run: |
+          # Start server in background
+          ./build/bin/quine-server &
+          SERVER_PID=$!
+
+          # Give it a moment to start
+          sleep 2
+
+          # Run tests
+          echo "Running test_structures.py..."
+          python3 tests/integration/test_structures.py
+
+          echo "Running test_lists.py..."
+          python3 tests/integration/test_lists.py
+
+          echo "Running test_sharding.py..."
+          python3 tests/integration/test_sharding.py
+
+          # Kill server
+          kill $SERVER_PID
