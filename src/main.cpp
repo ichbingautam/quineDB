@@ -1,6 +1,7 @@
+#include "core/config.hpp" // [NEW]
 #include "core/io_context.hpp"
 #include "core/topology.hpp"
-#include "network/connection.hpp" // [NEW]
+#include "network/connection.hpp"
 #include "network/tcp_server.hpp"
 #include <iostream>
 #include <thread>
@@ -102,13 +103,21 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
   }
 }
 
-int main() {
-  unsigned int n_threads = std::thread::hardware_concurrency();
-  // Default port 6379 (Redis standard)
-  int port = 6379;
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
+  // 1. Load Configuration
+  quine::core::Config config;
+  // TODO: Load from config file or CLI args (argc/argv)
+
+  unsigned int n_threads = config.worker_threads > 0
+                               ? config.worker_threads
+                               : std::thread::hardware_concurrency();
 
   std::cout << "QuineDB Server starting on " << n_threads << " cores, port "
-            << port << std::endl;
+            << config.port << std::endl;
+  std::cout << "RDB Persistence: " << config.rdb_filename << " ("
+            << config.save_params.size() << " save points)" << std::endl;
 
   // 1. Create Static Topology (Shared state resource container)
   // The Topology itself is thread-safe or read-only (Router),
@@ -120,7 +129,7 @@ int main() {
 
   // 2. Launch pinned worker threads
   for (unsigned int i = 0; i < n_threads; ++i) {
-    threads.emplace_back(worker_main, i, port, std::ref(topology));
+    threads.emplace_back(worker_main, i, config.port, std::ref(topology));
   }
 
   // 3. Wait for threads
