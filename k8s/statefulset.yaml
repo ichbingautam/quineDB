@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: quine-db
+  labels:
+    app: quine-db
+spec:
+  serviceName: "quine-db"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quine-db
+  template:
+    metadata:
+      labels:
+        app: quine-db
+    spec:
+      containers:
+      - name: quine-db
+        image: quine-db:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+          name: resp
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: standard # Use default storage class
+      resources:
+        requests:
+          storage: 1Gi
