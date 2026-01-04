@@ -113,6 +113,7 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
 }
 
 #include "commands/admin_commands.hpp"
+#include "commands/generic_commands.hpp"
 #include "commands/hash_commands.hpp"
 #include "commands/set_commands.hpp"
 #include "commands/zset_commands.hpp"
@@ -178,6 +179,8 @@ int main(int argc, char *argv[]) {
   registry.register_command(std::make_unique<quine::commands::ZRemCommand>());
   registry.register_command(std::make_unique<quine::commands::ZCardCommand>());
   registry.register_command(std::make_unique<quine::commands::ZScoreCommand>());
+  registry.register_command(std::make_unique<quine::commands::ExpireCommand>());
+  registry.register_command(std::make_unique<quine::commands::TtlCommand>());
   registry.register_command(std::make_unique<quine::commands::SaveCommand>());
 
   std::vector<std::thread> threads;

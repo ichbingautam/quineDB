@@ -151,6 +151,33 @@ def test_structures():
         res = parse_resp(f)
         assert res == ["z", "a", "b"], f"List order mismatch: {res}"
 
+        # --- EXPIRE / TTL ---
+        print("Testing EXPIRE/TTL...")
+        key = "expire_key"
+        s.sendall(resp_encode(["SET", key, "gone_soon"]))
+        parse_resp(f)
+
+        s.sendall(resp_encode(["EXPIRE", key, "1"]))
+        res = parse_resp(f)
+        assert res == 1, f"EXPIRE expected 1, got {res}"
+
+        s.sendall(resp_encode(["TTL", key]))
+        res = parse_resp(f)
+        # Should be between 0 and 1
+        assert res <= 1 and res >= 0, f"TTL expected ~1, got {res}"
+
+        print("Waiting for expiration...")
+        import time
+        time.sleep(1.2)
+
+        s.sendall(resp_encode(["GET", key]))
+        res = parse_resp(f)
+        assert res is None, f"GET after expire expected None, got {res}"
+
+        s.sendall(resp_encode(["TTL", key]))
+        res = parse_resp(f)
+        assert res == -2, f"TTL after expire expected -2, got {res}"
+
         print("SUCCESS")
         s.close()
     except Exception as e:

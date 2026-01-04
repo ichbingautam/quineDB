@@ -2,8 +2,10 @@
 
 #include "hash_map.hpp"
 #include "value.hpp"
+#include <chrono>
 #include <optional>
 #include <string_view>
+#include <unordered_map>
 
 namespace quine {
 namespace storage {
@@ -23,8 +25,14 @@ public:
     data_store_.for_each(callback);
   }
 
+  // Expiration support
+  void set_expiry(std::string_view key, long long milliseconds_timestamp);
+  long long get_expiry(std::string_view key) const; // Returns timestamp or -1
+
 private:
   HashMap data_store_;
+  // Stores absolute timestamp in milliseconds for expiration
+  std::unordered_map<std::string, long long> expires_;
 };
 
 } // namespace storage
