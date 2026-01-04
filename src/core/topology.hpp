@@ -40,7 +40,9 @@ public:
     int fd = notify_fds_[core_id];
     if (fd >= 0) {
       uint64_t u = 1;
-      ::write(fd, &u, sizeof(u));
+      if (::write(fd, &u, sizeof(u)) < 0) {
+        // Ignore error for now, purely signaling
+      }
     }
   }
 
