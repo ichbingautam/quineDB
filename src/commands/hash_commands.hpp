@@ -170,5 +170,107 @@ public:
   }
 };
 
+class HDelCommand : public core::Command {
+public:
+  std::string name() const override { return "HDEL"; }
+
+  std::string execute(quine::core::Topology &topology, size_t core_id,
+                      uint32_t conn_id,
+                      const std::vector<std::string> &args) override {
+    if (args.size() < 3)
+      return "-ERR wrong number of arguments for 'hdel'\r\n";
+
+    const std::string &key = args[1];
+
+    if (topology.is_local(core_id, key)) {
+      auto *shard = topology.get_shard(core_id);
+      storage::Value *val = shard->get(key);
+
+      if (!val)
+        return ":0\r\n";
+
+      auto *hash_ptr = std::get_if<storage::Hash>(val);
+      if (!hash_ptr)
+        return "-ERR WRONGTYPE Operation against a key holding the wrong kind "
+               "of value\r\n";
+
+      int removed = 0;
+      for (size_t i = 2; i < args.size(); ++i) {
+        if (hash_ptr->erase(args[i])) {
+          removed++;
+        }
+      }
+      return ":" + std::to_string(removed) + "\r\n";
+
+    } else {
+      return forward_request(topology, core_id, conn_id, args);
+    }
+  }
+
+private:
+  std::string forward_request(core::Topology &topology, size_t core_id,
+                              uint32_t conn_id,
+                              const std::vector<std::string> &args) {
+    size_t target_core = topology.get_target_core(args[1]);
+    core::Message msg;
+    msg.type = core::MessageType::REQUEST;
+    msg.origin_core_id = core_id;
+    msg.conn_id = conn_id;
+    msg.key = args[1];
+    msg.args = args;
+    topology.get_channel(target_core)->push(msg);
+    topology.notify_core(target_core);
+    return "";
+  }
+};
+
+class HLenCommand : public core::Command {
+public:
+  std::string name() const override { return "HLEN"; }
+
+  std::string execute(quine::core::Topology &topology, size_t core_id,
+                      uint32_t conn_id,
+                      const std::vector<std::string> &args) override {
+    if (args.size() != 2)
+      return "-ERR wrong number of arguments for 'hlen'\r\n";
+
+    const std::string &key = args[1];
+
+    if (topology.is_local(core_id, key)) {
+      auto *shard = topology.get_shard(core_id);
+      storage::Value *val = shard->get(key);
+
+      if (!val)
+        return ":0\r\n";
+
+      auto *hash_ptr = std::get_if<storage::Hash>(val);
+      if (!hash_ptr)
+        return "-ERR WRONGTYPE Operation against a key holding the wrong kind "
+               "of value\r\n";
+
+      return ":" + std::to_string(hash_ptr->size()) + "\r\n";
+
+    } else {
+      return forward_request(topology, core_id, conn_id, args);
+    }
+  }
+
+private:
+  std::string forward_request(core::Topology &topology, size_t core_id,
+                              uint32_t conn_id,
+                              const std::vector<std::string> &args) {
+    size_t target_core = topology.get_target_core(args[1]);
+    core::Message msg;
+    msg.type = core::MessageType::REQUEST;
+    msg.origin_core_id = core_id;
+    msg.conn_id = conn_id;
+    msg.key = args[1];
+    msg.args = args;
+    topology.get_channel(target_core)->push(msg);
+    topology.notify_core(target_core);
+    return "";
+  }
+};
+
 } // namespace commands
 } // namespace quine

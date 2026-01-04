@@ -82,6 +82,18 @@ def test_structures():
         # field1 < field2
         assert all_fields == ["field1", "val1", "field2", "val2"], f"HGETALL unexpected: {all_fields}"
 
+        s.sendall(resp_encode(["HLEN", key]))
+        res = parse_resp(f)
+        assert res == 2, f"HLEN expected 2, got {res}"
+
+        s.sendall(resp_encode(["HDEL", key, "field1"]))
+        res = parse_resp(f)
+        assert res == 1, f"HDEL expected 1, got {res}"
+
+        s.sendall(resp_encode(["HLEN", key]))
+        res = parse_resp(f)
+        assert res == 1, f"HLEN expected 1, got {res}"
+
         # --- ZSETS ---
         print("Testing ZSETs...")
         key = "myzset"

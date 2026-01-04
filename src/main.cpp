@@ -163,14 +163,21 @@ int main(int argc, char *argv[]) {
   registry.register_command(std::make_unique<quine::commands::SAddCommand>());
   registry.register_command(
       std::make_unique<quine::commands::SMembersCommand>());
+  registry.register_command(std::make_unique<quine::commands::SCardCommand>());
+  registry.register_command(std::make_unique<quine::commands::SRemCommand>());
 
   registry.register_command(std::make_unique<quine::commands::HSetCommand>());
   registry.register_command(std::make_unique<quine::commands::HGetCommand>());
   registry.register_command(
       std::make_unique<quine::commands::HGetAllCommand>());
+  registry.register_command(std::make_unique<quine::commands::HDelCommand>());
+  registry.register_command(std::make_unique<quine::commands::HLenCommand>());
 
   registry.register_command(std::make_unique<quine::commands::ZAddCommand>());
   registry.register_command(std::make_unique<quine::commands::ZRangeCommand>());
+  registry.register_command(std::make_unique<quine::commands::ZRemCommand>());
+  registry.register_command(std::make_unique<quine::commands::ZCardCommand>());
+  registry.register_command(std::make_unique<quine::commands::ZScoreCommand>());
   registry.register_command(std::make_unique<quine::commands::SaveCommand>());
 
   std::vector<std::thread> threads;

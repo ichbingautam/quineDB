@@ -43,12 +43,14 @@ struct ZSet {
     tree.insert(entry);
   }
 
-  void erase(const std::string &member) {
+  bool erase(const std::string &member) {
     auto it = dict.find(member);
     if (it != dict.end()) {
       tree.erase({it->second, member});
       dict.erase(it);
+      return true;
     }
+    return false;
   }
 
   size_t size() const { return tree.size(); }
