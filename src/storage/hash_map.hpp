@@ -1,5 +1,6 @@
 #pragma once
 
+#include "value.hpp"
 #include <algorithm>
 #include <functional>
 #include <optional>
@@ -19,9 +20,9 @@ class HashMap {
 public:
   struct Entry {
     std::string key;
-    std::string value;
+    Value value; // [CHANGED]
     bool occupied = false;
-    bool deleted = false; // Tombstone support for deletions
+    bool deleted = false;
   };
 
   explicit HashMap(size_t capacity = 1024) : capacity_(capacity), size_(0) {
@@ -29,47 +30,51 @@ public:
   }
 
   /// @brief Insert or Update a key-value pair.
-  void put(std::string_view key, std::string_view value) {
+  /// @return true if inserted, false if updated
+  bool put(std::string_view key, Value value) {
     size_t idx = hash(key);
     size_t start_idx = idx;
 
     while (entries_[idx].occupied) {
       if (!entries_[idx].deleted && entries_[idx].key == key) {
         // Update existing
-        entries_[idx].value = std::string(value);
-        return;
+        entries_[idx].value = std::move(value);
+        return false;
       }
       idx = (idx + 1) % capacity_;
       if (idx == start_idx) {
-        // Full - in a real DB we would resize or evict.
-        // For V1 proof-of-concept, we just throw or ignore.
-        // Throwing is safer for debugging.
         throw std::runtime_error("HashMap is full");
       }
     }
 
     // Insert new
     entries_[idx].key = std::string(key);
-    entries_[idx].value = std::string(value);
+    entries_[idx].value = std::move(value);
     entries_[idx].occupied = true;
     entries_[idx].deleted = false;
     size_++;
+    return true;
   }
 
   /// @brief Retrieve a value by key.
-  std::optional<std::string> get(std::string_view key) const {
+  Value *get(std::string_view key) {
     size_t idx = hash(key);
     size_t start_idx = idx;
 
     while (entries_[idx].occupied) {
       if (!entries_[idx].deleted && entries_[idx].key == key) {
-        return entries_[idx].value;
+        return &entries_[idx].value;
       }
       idx = (idx + 1) % capacity_;
       if (idx == start_idx)
-        return std::nullopt;
+        return nullptr;
     }
-    return std::nullopt;
+    return nullptr;
+  }
+
+  // Const overflow for get
+  const Value *get(std::string_view key) const {
+    return const_cast<HashMap *>(this)->get(key);
   }
 
   /// @brief Remove a key.
@@ -79,8 +84,8 @@ public:
 
     while (entries_[idx].occupied) {
       if (!entries_[idx].deleted && entries_[idx].key == key) {
-        entries_[idx].deleted = true; // Mark as tombstone
-        // We keep 'occupied' true to maintain probe chain
+        entries_[idx].deleted = true;
+        entries_[idx].value = std::monostate{}; // Clear memory
         size_--;
         return true;
       }

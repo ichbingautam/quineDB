@@ -103,12 +103,20 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
   }
 }
 
+#include "commands/registry.hpp"
+#include "commands/string_commands.hpp"
+
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
   // 1. Load Configuration
   quine::core::Config config;
   // TODO: Load from config file or CLI args (argc/argv)
+
+  // 1. Initialize Registry
+  auto &registry = quine::commands::CommandRegistry::instance();
+  registry.register_command(std::make_unique<quine::commands::SetCommand>());
+  registry.register_command(std::make_unique<quine::commands::GetCommand>());
 
   unsigned int n_threads = config.worker_threads > 0
                                ? config.worker_threads

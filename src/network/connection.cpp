@@ -140,96 +140,30 @@ std::vector<char> Connection::handle_data(const char *data, size_t len) {
   return response;
 }
 
+#include "../commands/registry.hpp"
+
 std::string Connection::execute_command(const std::vector<std::string> &args) {
   if (args.empty())
     return "-ERR empty command\r\n";
 
-  std::string cmd = args[0];
+  std::string cmd_name = args[0];
   // poor man's to_upper
-  for (auto &c : cmd)
+  for (auto &c : cmd_name)
     c = std::toupper(c);
 
-  if (cmd == "SET") {
-    if (args.size() != 3)
-      return "-ERR wrong number of arguments for 'set'\r\n";
+  // Use Registry
+  auto *cmd =
+      quine::commands::CommandRegistry::instance().get_command(cmd_name);
+  if (cmd) {
+    return cmd->execute(topology_, core_id_, id_, args);
+  }
 
-    // Check routing
-    if (topology_.is_local(core_id_, args[1])) {
-      topology_.get_shard(core_id_)->set(args[1], args[2]);
-      return "+OK\r\n";
-    } else {
-      // Forwarding Logic
-      size_t target_core = topology_.get_target_core(args[1]);
-
-      core::Message msg;
-      msg.type = core::MessageType::REQUEST;
-      msg.origin_core_id = core_id_;
-      msg.conn_id = id_;
-      msg.key = args[1];
-      // msg.args = args;
-      msg.args = std::vector<std::string>{cmd, args[1], args[2]};
-
-      topology_.get_channel(target_core)->push(msg);
-      topology_.notify_core(target_core);
-
-      return ""; // Async response will follow
-    }
-  } else if (cmd == "GET") {
-    if (args.size() != 2)
-      return "-ERR wrong number of arguments for 'get'\r\n";
-
-    if (topology_.is_local(core_id_, args[1])) {
-      auto val = topology_.get_shard(core_id_)->get(args[1]);
-      if (val) {
-        return "$" + std::to_string(val->size()) + "\r\n" + *val + "\r\n";
-      } else {
-        return "$-1\r\n"; // Null bulk string
-      }
-    } else {
-      // Forwarding Logic
-      size_t target_core = topology_.get_target_core(args[1]);
-
-      core::Message msg;
-      msg.type = core::MessageType::REQUEST;
-      msg.origin_core_id = core_id_;
-      msg.conn_id = id_;
-      msg.key = args[1];
-      // msg.args = args;
-      msg.args = std::vector<std::string>{cmd, args[1]};
-
-      topology_.get_channel(target_core)->push(msg);
-      topology_.notify_core(target_core);
-
-      return ""; // Async response will follow
-    }
-  } else if (cmd == "DEL") {
-    if (args.size() != 2)
-      return "-ERR wrong number of arguments for 'del'\r\n";
-
-    if (topology_.is_local(core_id_, args[1])) {
-      bool deleted = topology_.get_shard(core_id_)->del(args[1]);
-      return ":" + std::to_string(deleted ? 1 : 0) + "\r\n";
-    } else {
-      // Forwarding Logic
-      size_t target_core = topology_.get_target_core(args[1]);
-
-      core::Message msg;
-      msg.type = core::MessageType::REQUEST;
-      msg.origin_core_id = core_id_;
-      msg.conn_id = id_;
-      msg.key = args[1];
-      msg.args = std::vector<std::string>{cmd, args[1]}; // Re-construct
-
-      topology_.get_channel(target_core)->push(msg);
-      topology_.notify_core(target_core);
-
-      return ""; // Async response will follow
-    }
-  } else if (cmd == "PING") {
+  // Minimal PING fallback if not in registry (though it should be eventually)
+  if (cmd_name == "PING") {
     return "+PONG\r\n";
   }
 
-  return "-ERR unknown command '" + cmd + "'\r\n";
+  return "-ERR unknown command '" + cmd_name + "'\r\n";
 }
 
 } // namespace network

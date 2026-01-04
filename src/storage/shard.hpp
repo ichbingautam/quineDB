@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hash_map.hpp"
+#include "value.hpp"
 #include <optional>
 #include <string_view>
 
@@ -13,8 +14,9 @@ class Shard {
 public:
   Shard();
 
-  void set(std::string_view key, std::string_view value);
-  std::optional<std::string> get(std::string_view key) const;
+  void set(std::string_view key, Value value);
+  Value *get(std::string_view key);
+  const Value *get(std::string_view key) const;
   bool del(std::string_view key);
 
 private:
