@@ -112,21 +112,40 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
   }
 }
 
+#include "commands/hash_commands.hpp"
+#include "commands/set_commands.hpp"
+#include "commands/zset_commands.hpp"
+
+// ... (worker_main stays same, skipping lines 23-113) ...
+
+// Start of main()
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
   // 1. Load Configuration
   quine::core::Config config;
-  // TODO: Load from config file or CLI args (argc/argv)
 
   // 1. Initialize Registry
   auto &registry = quine::commands::CommandRegistry::instance();
   registry.register_command(std::make_unique<quine::commands::SetCommand>());
   registry.register_command(std::make_unique<quine::commands::GetCommand>());
+  registry.register_command(std::make_unique<quine::commands::DelCommand>());
+
   registry.register_command(std::make_unique<quine::commands::LPushCommand>());
   registry.register_command(std::make_unique<quine::commands::LPopCommand>());
   registry.register_command(std::make_unique<quine::commands::LRangeCommand>());
-  registry.register_command(std::make_unique<quine::commands::DelCommand>());
+
+  registry.register_command(std::make_unique<quine::commands::SAddCommand>());
+  registry.register_command(
+      std::make_unique<quine::commands::SMembersCommand>());
+
+  registry.register_command(std::make_unique<quine::commands::HSetCommand>());
+  registry.register_command(std::make_unique<quine::commands::HGetCommand>());
+  registry.register_command(
+      std::make_unique<quine::commands::HGetAllCommand>());
+
+  registry.register_command(std::make_unique<quine::commands::ZAddCommand>());
+  registry.register_command(std::make_unique<quine::commands::ZRangeCommand>());
 
   unsigned int n_threads = config.worker_threads > 0
                                ? config.worker_threads
