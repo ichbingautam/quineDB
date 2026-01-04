@@ -19,6 +19,10 @@ public:
   const Value *get(std::string_view key) const;
   bool del(std::string_view key);
 
+  template <typename F> void for_each(F callback) const {
+    data_store_.for_each(callback);
+  }
+
 private:
   HashMap data_store_;
 };

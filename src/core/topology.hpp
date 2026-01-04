@@ -47,10 +47,17 @@ public:
   // -- Accessors --
 
   size_t get_num_cores() const { return num_cores_; }
+  size_t shard_count() const { return num_cores_; }
 
   Router &get_router() { return router_; }
 
   storage::Shard *get_shard(size_t core_id) {
+    if (core_id >= shards_.size())
+      throw std::out_of_range("Invalid core_id");
+    return shards_[core_id].get();
+  }
+
+  const storage::Shard *get_shard(size_t core_id) const {
     if (core_id >= shards_.size())
       throw std::out_of_range("Invalid core_id");
     return shards_[core_id].get();

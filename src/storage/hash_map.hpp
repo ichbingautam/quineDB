@@ -96,6 +96,15 @@ public:
     return false;
   }
 
+  /// @brief Iterate over all valid entries
+  template <typename F> void for_each(F callback) const {
+    for (const auto &entry : entries_) {
+      if (entry.occupied && !entry.deleted) {
+        callback(entry.key, entry.value);
+      }
+    }
+  }
+
 private:
   std::vector<Entry> entries_;
   size_t capacity_;

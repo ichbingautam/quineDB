@@ -51,21 +51,15 @@ public:
         }
         const std::string &member = args[i + 1];
 
-        // Check if exists (O(N) scan required for std::set based
-        // implementation)
-        auto it = std::find_if(zset_ptr->begin(), zset_ptr->end(),
-                               [&](const storage::ZSetEntry &entry) {
-                                 return entry.member == member;
-                               });
-
-        if (it != zset_ptr->end()) {
-          if (it->score != score) {
-            // Update score: Remove and Re-insert
-            zset_ptr->erase(it);
+        // Optimized lookup using internal dictionary
+        auto it = zset_ptr->dict.find(member);
+        if (it != zset_ptr->dict.end()) {
+          if (it->second != score) {
+            // Update existing
             zset_ptr->insert({score, member});
-            // Not counted as 'added'
           }
         } else {
+          // New insert
           zset_ptr->insert({score, member});
           added++;
         }

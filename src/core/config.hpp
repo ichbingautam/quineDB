@@ -13,7 +13,7 @@ struct RdbSavePoint {
 
 struct Config {
   // RDB Persistence Configuration
-  std::string rdb_filename = "dump.rdb";
+  std::string rdb_filename = "data/dump.rdb";
   bool rdb_compression = true;
   std::string dir = "./";
 

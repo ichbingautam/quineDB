@@ -112,9 +112,11 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
   }
 }
 
+#include "commands/admin_commands.hpp"
 #include "commands/hash_commands.hpp"
 #include "commands/set_commands.hpp"
 #include "commands/zset_commands.hpp"
+#include "persistence/rdb_manager.hpp"
 
 // ... (worker_main stays same, skipping lines 23-113) ...
 
@@ -125,6 +127,26 @@ int main(int argc, char *argv[]) {
   // 1. Load Configuration
   quine::core::Config config;
 
+  unsigned int n_threads = config.worker_threads > 0
+                               ? config.worker_threads
+                               : std::thread::hardware_concurrency();
+
+  // Initialize Topology FIRST because RDB loader needs it
+  quine::core::Topology topology(n_threads);
+
+  std::cout << "QuineDB Server starting on " << n_threads << " cores, port "
+            << config.port << std::endl;
+  std::cout << "RDB Persistence: " << config.rdb_filename << " ("
+            << config.save_params.size() << " save points)" << std::endl;
+
+  // Try loading RDB
+  if (quine::persistence::RdbManager::load(topology, config.rdb_filename)) {
+    std::cout << "[RDB] Loaded successfully from " << config.rdb_filename
+              << std::endl;
+  } else {
+    std::cout << "[RDB] No valid RDB file found, starting empty." << std::endl;
+  }
+
   // 1. Initialize Registry
   auto &registry = quine::commands::CommandRegistry::instance();
   registry.register_command(std::make_unique<quine::commands::SetCommand>());
@@ -134,6 +156,9 @@ int main(int argc, char *argv[]) {
   registry.register_command(std::make_unique<quine::commands::LPushCommand>());
   registry.register_command(std::make_unique<quine::commands::LPopCommand>());
   registry.register_command(std::make_unique<quine::commands::LRangeCommand>());
+  registry.register_command(std::make_unique<quine::commands::RPushCommand>());
+  registry.register_command(std::make_unique<quine::commands::RPopCommand>());
+  registry.register_command(std::make_unique<quine::commands::LLenCommand>());
 
   registry.register_command(std::make_unique<quine::commands::SAddCommand>());
   registry.register_command(
@@ -146,20 +171,7 @@ int main(int argc, char *argv[]) {
 
   registry.register_command(std::make_unique<quine::commands::ZAddCommand>());
   registry.register_command(std::make_unique<quine::commands::ZRangeCommand>());
-
-  unsigned int n_threads = config.worker_threads > 0
-                               ? config.worker_threads
-                               : std::thread::hardware_concurrency();
-
-  std::cout << "QuineDB Server starting on " << n_threads << " cores, port "
-            << config.port << std::endl;
-  std::cout << "RDB Persistence: " << config.rdb_filename << " ("
-            << config.save_params.size() << " save points)" << std::endl;
-
-  // 1. Create Static Topology (Shared state resource container)
-  // The Topology itself is thread-safe or read-only (Router),
-  // Shards are single-threaded accessed by owner core.
-  quine::core::Topology topology(n_threads);
+  registry.register_command(std::make_unique<quine::commands::SaveCommand>());
 
   std::vector<std::thread> threads;
   threads.reserve(n_threads);

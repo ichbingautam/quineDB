@@ -20,3 +20,7 @@ Makefile
 *.a
 *.so
 *.dylib
+
+# Data
+data/
+*.rdb

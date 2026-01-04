@@ -17,6 +17,7 @@ using Set = std::set<std::string>;
 using Hash = std::map<std::string, std::string>;
 
 // Score-Value pair for Sorted Sets
+// Score-Value pair for Sorted Sets
 struct ZSetEntry {
   double score;
   std::string member;
@@ -27,7 +28,33 @@ struct ZSetEntry {
     return member < other.member;
   }
 };
-using ZSet = std::set<ZSetEntry>;
+
+struct ZSet {
+  std::set<ZSetEntry> tree;
+  std::unordered_map<std::string, double> dict;
+
+  void insert(ZSetEntry entry) {
+    auto it = dict.find(entry.member);
+    if (it != dict.end()) {
+      // Remove old score mapping from tree
+      tree.erase({it->second, entry.member});
+    }
+    dict[entry.member] = entry.score;
+    tree.insert(entry);
+  }
+
+  void erase(const std::string &member) {
+    auto it = dict.find(member);
+    if (it != dict.end()) {
+      tree.erase({it->second, member});
+      dict.erase(it);
+    }
+  }
+
+  size_t size() const { return tree.size(); }
+  auto begin() const { return tree.begin(); }
+  auto end() const { return tree.end(); }
+};
 
 // Polymorphic container
 using Value = std::variant<std::monostate, // Empty/Null

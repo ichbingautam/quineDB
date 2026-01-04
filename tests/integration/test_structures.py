@@ -109,6 +109,36 @@ def test_structures():
         assert zrange[1].startswith("15")
         assert zrange[3].startswith("20")
 
+        # --- LISTS (RPUSH/POP) ---
+        print("Testing LISTs (RPUSH/POP)...")
+        key = "mylist"
+        s.sendall(resp_encode(["DEL", key]))
+        parse_resp(f)
+
+        s.sendall(resp_encode(["RPUSH", key, "a", "b", "c"]))
+        res = parse_resp(f)
+        assert res == 3, f"RPUSH expected 3, got {res}"
+
+        s.sendall(resp_encode(["LLEN", key]))
+        res = parse_resp(f)
+        assert res == 3, f"LLEN expected 3, got {res}"
+
+        s.sendall(resp_encode(["RPOP", key]))
+        res = parse_resp(f)
+        assert res == "c", f"RPOP expected c, got {res}"
+
+        s.sendall(resp_encode(["LLEN", key]))
+        res = parse_resp(f)
+        assert res == 2, f"LLEN expected 2, got {res}"
+
+        s.sendall(resp_encode(["LPUSH", key, "z"]))
+        length_after_lpush = parse_resp(f)  # Consume LPUSH response
+        # List is now [z, a, b]
+
+        s.sendall(resp_encode(["LRANGE", key, "0", "-1"]))
+        res = parse_resp(f)
+        assert res == ["z", "a", "b"], f"List order mismatch: {res}"
+
         print("SUCCESS")
         s.close()
     except Exception as e:
