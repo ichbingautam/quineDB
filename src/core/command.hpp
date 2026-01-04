@@ -1,6 +1,6 @@
 #pragma once
 
-#include "topology.hpp"
+// #include "topology.hpp"
 #include <string>
 #include <vector>
 
@@ -19,7 +19,7 @@ public:
   /// @param core_id The ID of the current core executing the command.
   /// @param args The command arguments (including the command name).
   /// @return The RESP-formatted response string.
-  virtual std::string execute(Topology &topology, size_t core_id,
+  virtual std::string execute(quine::core::Topology &topology, size_t core_id,
                               uint32_t conn_id,
                               const std::vector<std::string> &args) = 0;
 

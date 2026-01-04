@@ -2,6 +2,7 @@
 
 #include "../core/command.hpp"
 #include "../core/message.hpp"
+#include "../core/topology.hpp"
 #include "../storage/value.hpp"
 #include <iostream>
 
@@ -64,6 +65,37 @@ public:
       } else {
         return "$-1\r\n";
       }
+    } else {
+      // Forwarding
+      size_t target_core = topology.get_target_core(args[1]);
+      core::Message msg;
+      msg.type = core::MessageType::REQUEST;
+      msg.origin_core_id = core_id;
+      msg.conn_id = conn_id;
+      msg.key = args[1];
+      msg.args = args;
+
+      topology.get_channel(target_core)->push(msg);
+      topology.notify_core(target_core);
+
+      return "";
+    }
+  }
+};
+
+class DelCommand : public core::Command {
+public:
+  std::string name() const override { return "DEL"; }
+
+  std::string execute(quine::core::Topology &topology, size_t core_id,
+                      uint32_t conn_id,
+                      const std::vector<std::string> &args) override {
+    if (args.size() != 2)
+      return "-ERR wrong number of arguments for 'del'\r\n";
+
+    if (topology.is_local(core_id, args[1])) {
+      bool deleted = topology.get_shard(core_id)->del(args[1]);
+      return ":" + std::to_string(deleted ? 1 : 0) + "\r\n";
     } else {
       // Forwarding
       size_t target_core = topology.get_target_core(args[1]);

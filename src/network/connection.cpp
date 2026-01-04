@@ -1,4 +1,5 @@
 #include "connection.hpp"
+#include "../commands/registry.hpp"
 #include "../core/io_context.hpp" // [NEW] Needed for full definition
 #include "liburing.h"
 #include <cctype> // for std::toupper
@@ -139,8 +140,6 @@ std::vector<char> Connection::handle_data(const char *data, size_t len) {
 
   return response;
 }
-
-#include "../commands/registry.hpp"
 
 std::string Connection::execute_command(const std::vector<std::string> &args) {
   if (args.empty())

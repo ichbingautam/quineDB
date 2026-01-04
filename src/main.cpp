@@ -1,4 +1,4 @@
-#include "core/config.hpp" // [NEW]
+#include "core/config.hpp"
 #include "core/io_context.hpp"
 #include "core/topology.hpp"
 #include "network/connection.hpp"
@@ -15,6 +15,10 @@
 /// it detects the number of available hardware contexts and spawns
 /// a dedicated worker thread for each. Each worker runs its own
 /// isolated Event Loop (IoContext), adhering to the Shared-Nothing design.
+
+#include "commands/list_commands.hpp"
+#include "commands/registry.hpp"
+#include "commands/string_commands.hpp"
 
 // Worker thread function
 void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
@@ -48,37 +52,42 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
       my_channel->consume_all([&](quine::core::Message &&msg) {
         if (msg.type == quine::core::MessageType::REQUEST) {
           // Execute on local shard (Remote Request)
-          auto *shard = topology.get_shard(core_id);
-          std::string cmd = msg.args[0];
+          std::string cmd_name = msg.args[0];
           std::string response_str;
 
-          if (cmd == "SET" && msg.args.size() == 3) {
-            shard->set(msg.args[1], msg.args[2]);
-            response_str = "+OK\r\n";
-          } else if (cmd == "DEL" && msg.args.size() == 2) {
-            bool res = shard->del(msg.args[1]);
-            response_str = ":" + std::to_string(res ? 1 : 0) + "\r\n";
-          } else if (cmd == "GET" && msg.args.size() == 2) {
-            auto val = shard->get(msg.args[1]);
-            if (val)
-              response_str =
-                  "$" + std::to_string(val->size()) + "\r\n" + *val + "\r\n";
-            else
-              response_str = "$-1\r\n";
+          // Use Registry to execute command
+          auto *cmd = quine::commands::CommandRegistry::instance().get_command(
+              cmd_name);
+          if (cmd) {
+            // Execute the command directly on this core
+            // Note: msg.args contains the full command [SET, key, value]
+            response_str =
+                cmd->execute(topology, core_id, msg.conn_id, msg.args);
+            // Since we are on the target core, execute() should return the
+            // result string and NOT perform forwarding (as is_local will be
+            // true). However, if the command returns empty string (which
+            // implies "forwarded"), that would be a bug here since we ARE the
+            // destination. But execute() logic checks is_local(core_id, key).
+            // Since we routed it here, it MUST be local.
           } else {
-            response_str = "-ERR unsupported forwarded command\r\n";
+            response_str = "-ERR unknown command '" + cmd_name + "'\r\n";
           }
 
           // Send RESPONSE back to origin core
-          quine::core::Message reply;
-          reply.type = quine::core::MessageType::RESPONSE;
-          reply.origin_core_id = core_id; // Sender (us)
-          reply.conn_id = msg.conn_id;    // Route to original connection
-          reply.payload = response_str;
-          reply.success = true;
+          if (!response_str.empty()) {
+            quine::core::Message reply;
+            reply.type = quine::core::MessageType::RESPONSE;
+            reply.origin_core_id = core_id; // Sender (us)
+            reply.conn_id = msg.conn_id;    // Route to original connection
+            reply.payload = response_str;
+            reply.success = true;
 
-          topology.get_channel(msg.origin_core_id)->push(reply);
-          topology.notify_core(msg.origin_core_id);
+            auto *origin_channel = topology.get_channel(msg.origin_core_id);
+            if (origin_channel) {
+              origin_channel->push(reply);
+              topology.notify_core(msg.origin_core_id);
+            }
+          }
 
         } else if (msg.type == quine::core::MessageType::RESPONSE) {
           // Received result from another core for one of our connections
@@ -103,9 +112,6 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
   }
 }
 
-#include "commands/registry.hpp"
-#include "commands/string_commands.hpp"
-
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
@@ -117,6 +123,10 @@ int main(int argc, char *argv[]) {
   auto &registry = quine::commands::CommandRegistry::instance();
   registry.register_command(std::make_unique<quine::commands::SetCommand>());
   registry.register_command(std::make_unique<quine::commands::GetCommand>());
+  registry.register_command(std::make_unique<quine::commands::LPushCommand>());
+  registry.register_command(std::make_unique<quine::commands::LPopCommand>());
+  registry.register_command(std::make_unique<quine::commands::LRangeCommand>());
+  registry.register_command(std::make_unique<quine::commands::DelCommand>());
 
   unsigned int n_threads = config.worker_threads > 0
                                ? config.worker_threads
