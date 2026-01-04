@@ -1,7 +1,9 @@
 #include "tcp_server.hpp"
 #include "../core/operation.hpp"
 #include "../network/connection.hpp"
+#include "liburing.h"
 #include <cstring>
+#include <fcntl.h>
 #include <iostream>
 #include <netinet/in.h>
 #include <stdexcept>
@@ -36,6 +38,15 @@ void TcpServer::setup_listener() {
   server_fd_ = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd_ < 0) {
     throw std::system_error(errno, std::generic_category(), "socket failed");
+  }
+
+  // Set non-blocking
+  int flags = fcntl(server_fd_, F_GETFL, 0);
+  if (flags < 0)
+    throw std::system_error(errno, std::generic_category(), "fcntl get failed");
+  if (fcntl(server_fd_, F_SETFL, flags | O_NONBLOCK) < 0) {
+    throw std::system_error(errno, std::generic_category(),
+                            "fcntl set nonblock failed");
   }
 
   int opt = 1;

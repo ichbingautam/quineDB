@@ -3,6 +3,7 @@
 #include "liburing.h"
 #include <cctype> // for std::toupper
 #include <cstring>
+#include <fcntl.h>
 #include <iostream>
 #include <unistd.h>
 
@@ -32,6 +33,10 @@ static std::atomic<uint32_t> next_conn_id{1};
 
 Connection::Connection(int fd, core::Topology &topology, size_t core_id)
     : fd_(fd), id_(next_conn_id++), topology_(topology), core_id_(core_id) {
+  // Set non-blocking
+  int flags = fcntl(fd_, F_GETFL, 0);
+  fcntl(fd_, F_SETFL, flags | O_NONBLOCK);
+
   // Pre-allocate decent buffer
   read_buffer_.reserve(4096);
 }
