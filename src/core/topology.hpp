@@ -31,6 +31,14 @@ public:
     if (core_id >= notify_fds_.size())
       throw std::out_of_range("Invalid core_id");
     notify_fds_[core_id] = fd;
+    registered_count_++;
+  }
+
+  // Barrier to ensure all cores have registered their FDs
+  void wait_for_all_cores() {
+    while (registered_count_ < num_cores_) {
+      std::this_thread::yield();
+    }
   }
 
   // Wake up a specific core
@@ -89,6 +97,7 @@ private:
   std::vector<std::unique_ptr<storage::Shard>> shards_;
   std::vector<std::unique_ptr<ItcChannel<Message>>> channels_;
   std::vector<int> notify_fds_;
+  std::atomic<size_t> registered_count_{0};
 };
 
 } // namespace core

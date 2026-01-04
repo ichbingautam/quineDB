@@ -30,7 +30,14 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
     std::unordered_map<uint32_t, quine::network::Connection *>
         local_connections;
 
-    // 2. Initialize TCP Server (Shared Port via SO_REUSEPORT)
+    topology.register_notify_fd(core_id, ctx.get_notify_fd());
+
+    // 2.5 Wait for all cores to initialize their FDs
+    // This prevents a race condition where a core receives a request (via
+    // another core) before it has registered its notification FD.
+    topology.wait_for_all_cores();
+
+    // 3. Initialize TCP Server (Shared Port via SO_REUSEPORT)
     quine::network::TcpServer server(ctx, port, topology, core_id);
 
     // Track new connections
@@ -43,9 +50,7 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
 
     server.start();
 
-    topology.register_notify_fd(core_id, ctx.get_notify_fd());
-
-    // 3. Register ITC Notification Handler
+    // 4. Register ITC Notification Handler
     auto *my_channel = topology.get_channel(core_id);
     ctx.set_notification_handler([&]() {
       // Process all pending messages in the inbox
