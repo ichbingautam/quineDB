@@ -11,5 +11,5 @@ add_subdirectory(core)
 add_subdirectory(network)
 add_subdirectory(storage) # [NEW] Storage Layer
 # add_subdirectory(storage)
-# add_subdirectory(consensus)
+add_subdirectory(consensus)
 # add_subdirectory(api)

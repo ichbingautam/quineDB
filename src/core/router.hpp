@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -26,7 +27,15 @@ public:
   static uint16_t crc16(const std::string &key);
 
 private:
-  size_t num_shards_;
+  // Maps Hash -> ShardID
+  std::map<uint32_t, size_t> ring_;
+
+  // Number of virtual nodes per shard
+  static const size_t VIRTUAL_NODES_PER_SHARD = 100;
+
+  size_t num_shards_; // Kept for fallback or reloading
+
+  void initialize_ring(size_t num_shards);
 };
 
 } // namespace core
