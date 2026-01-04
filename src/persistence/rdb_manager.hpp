@@ -39,6 +39,18 @@ public:
       // 'good enough' for demo.
 
       shard->for_each([&](const std::string &key, const storage::Value &val) {
+        // Write expiry first if present (Redis standard puts EXPIRE before
+        // key/value) Here, to simplify, we can put it as a separate entry type
+        // associated with key BUT strict Redis RDB usually prefixes the value
+        // type with expiry opcode. Let's adopt: [OPCODE_EXPIRE_MS] [timestamp]
+        // [OPCODE_TYPE] [key] [value]
+        long long expiry = shard->get_expiry(key);
+        if (expiry != -1) {
+          uint8_t expire_opcode = static_cast<uint8_t>(RdbType::EXPIRE_MS);
+          ofs.write(reinterpret_cast<const char *>(&expire_opcode), 1);
+          ofs.write(reinterpret_cast<const char *>(&expiry), sizeof(expiry));
+        }
+
         write_entry(ofs, key, val);
       });
     }
@@ -77,6 +89,42 @@ public:
       storage::Value val;
 
       switch (static_cast<RdbType>(type_byte)) {
+      case RdbType::EXPIRE_MS:
+        long long expiry;
+        ifs.read(reinterpret_cast<char *>(&expiry), sizeof(expiry));
+        // After expire, the next byte MUST be value type
+        ifs.read(reinterpret_cast<char *>(&type_byte), 1);
+        key = read_string(ifs);
+
+        // Determine value type
+        switch (static_cast<RdbType>(type_byte)) {
+        case RdbType::STRING:
+          val = read_string(ifs);
+          break;
+        case RdbType::LIST:
+          val = read_list(ifs);
+          break;
+        case RdbType::SET:
+          val = read_set(ifs);
+          break;
+        case RdbType::HASH:
+          val = read_hash(ifs);
+          break;
+        case RdbType::ZSET:
+          val = read_zset(ifs);
+          break;
+        default:
+          return false;
+        }
+
+        {
+          size_t target_core = topology.get_target_core(key);
+          auto *shard = topology.get_shard(target_core);
+          shard->set(key, std::move(val));
+          shard->set_expiry(key, expiry);
+        }
+        continue; // Skip the standard insert below
+
       case RdbType::STRING:
         val = read_string(ifs);
         break;

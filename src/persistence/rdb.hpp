@@ -15,6 +15,7 @@ enum class RdbType : uint8_t {
   SET = 2,
   HASH = 3,
   ZSET = 4,
+  EXPIRE_MS = 252,
   END_OF_FILE = 255
 };
 
