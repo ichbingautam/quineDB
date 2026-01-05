@@ -4,6 +4,9 @@ import sys
 HOST = '127.0.0.1'
 PORT = 6379
 
+import functools
+print = functools.partial(print, flush=True)
+
 def resp_encode(parts):
     buf = f"*{len(parts)}\r\n"
     for part in parts:
