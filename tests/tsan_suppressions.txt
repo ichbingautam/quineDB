@@ -1,0 +1,4 @@
+# ThreadSanitizer suppressions
+# Example:
+# race:some_function_name
+# race:path/to/source/file.cpp
