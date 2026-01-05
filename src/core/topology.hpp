@@ -4,8 +4,10 @@
 #include "itc_channel.hpp"
 #include "message.hpp"
 #include "router.hpp"
+#include <atomic>
 #include <memory>
 #include <stdexcept>
+#include <thread>
 #include <unistd.h> // for write
 #include <vector>
 
