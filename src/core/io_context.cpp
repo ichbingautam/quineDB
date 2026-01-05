@@ -7,6 +7,9 @@
 #include <iostream>
 #include <stdexcept>
 #include <unistd.h>
+#ifdef __linux__
+#include <sys/eventfd.h>
+#endif
 
 namespace quine {
 namespace core {
@@ -52,8 +55,11 @@ IoContext::~IoContext() {
 
 void IoContext::setup_event_fd() {
 #ifdef __linux__
-  // event_fd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-  // notify_fd_ = event_fd_; // Same FD for eventfd
+  event_fd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+  if (event_fd_ < 0) {
+    throw std::system_error(errno, std::generic_category(), "eventfd failed");
+  }
+  notify_fd_ = event_fd_; // Same FD for eventfd
 #else
   // Fallback to pipe for macOS/BSD
   int fds[2];
