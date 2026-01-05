@@ -19,15 +19,15 @@ struct Config {
 
   // Default Redis-like save points
   std::vector<RdbSavePoint> save_params = {
-      {3600, 1},  // Save after 3600 seconds if at least 1 change
-      {300, 100}, // Save after 300 seconds if at least 100 changes
-      {60, 10000} // Save after 60 seconds if at least 10000 changes
+      {3600, 1},   // Save after 3600 seconds if at least 1 change
+      {300, 100},  // Save after 300 seconds if at least 100 changes
+      {60, 10000}  // Save after 60 seconds if at least 10000 changes
   };
 
   // Network Configuration
   int port = 6379;
-  int worker_threads = 0; // 0 = auto-detect
+  int worker_threads = 0;  // 0 = auto-detect
 };
 
-} // namespace core
-} // namespace quine
+}  // namespace core
+}  // namespace quine

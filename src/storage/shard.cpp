@@ -11,7 +11,7 @@ void Shard::set(std::string_view key, Value value) {
   expires_.erase(std::string(key));
 }
 
-Value *Shard::get(std::string_view key) {
+Value* Shard::get(std::string_view key) {
   // Check expiration
   auto it = expires_.find(std::string(key));
   if (it != expires_.end()) {
@@ -28,7 +28,7 @@ Value *Shard::get(std::string_view key) {
   return data_store_.get(key);
 }
 
-const Value *Shard::get(std::string_view key) const {
+const Value* Shard::get(std::string_view key) const {
   // Const get cannot lazy expire, but should simulate it
   // Cast away constness to check expires map? Or just check map?
   // In a read-only context (like RDB save), we might return expired data
@@ -65,5 +65,5 @@ long long Shard::get_expiry(std::string_view key) const {
   return -1;
 }
 
-} // namespace storage
-} // namespace quine
+}  // namespace storage
+}  // namespace quine

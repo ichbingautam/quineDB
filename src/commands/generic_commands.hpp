@@ -1,25 +1,26 @@
 #pragma once
 
+#include <chrono>
+
 #include "../core/command.hpp"
 #include "../core/message.hpp"
 #include "../core/topology.hpp"
-#include <chrono>
 
 namespace quine {
 namespace commands {
 
 class ExpireCommand : public core::Command {
-public:
-  std::string name() const override { return "EXPIRE"; }
+ public:
+  std::string name() const override {
+    return "EXPIRE";
+  }
 
-  std::string execute(quine::core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
-    if (args.size() != 3)
-      return "-ERR wrong number of arguments for 'expire'\r\n";
+  std::string execute(quine::core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
+    if (args.size() != 3) return "-ERR wrong number of arguments for 'expire'\r\n";
 
     // EXPIRE key seconds
-    const std::string &key = args[1];
+    const std::string& key = args[1];
     long seconds = 0;
     try {
       seconds = std::stol(args[2]);
@@ -28,11 +29,11 @@ public:
     }
 
     if (topology.is_local(core_id, key)) {
-      auto *shard = topology.get_shard(core_id);
+      auto* shard = topology.get_shard(core_id);
       // We must check if key exists first!
       // Note: shard->get() also checks expiry, so if it returns nullptr, it's
       // already expired or missing.
-      auto *val = shard->get(key);
+      auto* val = shard->get(key);
       if (!val) {
         return ":0\r\n";
       }
@@ -60,29 +61,29 @@ public:
 };
 
 class TtlCommand : public core::Command {
-public:
-  std::string name() const override { return "TTL"; }
+ public:
+  std::string name() const override {
+    return "TTL";
+  }
 
-  std::string execute(quine::core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
-    if (args.size() != 2)
-      return "-ERR wrong number of arguments for 'ttl'\r\n";
+  std::string execute(quine::core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
+    if (args.size() != 2) return "-ERR wrong number of arguments for 'ttl'\r\n";
 
-    const std::string &key = args[1];
+    const std::string& key = args[1];
 
     if (topology.is_local(core_id, key)) {
-      auto *shard = topology.get_shard(core_id);
+      auto* shard = topology.get_shard(core_id);
 
       // Use get() to filter out already expired keys
-      auto *val = shard->get(key);
+      auto* val = shard->get(key);
       if (!val) {
-        return ":-2\r\n"; // Key does not exist
+        return ":-2\r\n";  // Key does not exist
       }
 
       long long expiry = shard->get_expiry(key);
       if (expiry == -1) {
-        return ":-1\r\n"; // No expiry
+        return ":-1\r\n";  // No expiry
       }
 
       auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -115,5 +116,5 @@ public:
   }
 };
 
-} // namespace commands
-} // namespace quine
+}  // namespace commands
+}  // namespace quine

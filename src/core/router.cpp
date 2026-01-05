@@ -4,7 +4,7 @@ namespace quine {
 namespace core {
 
 // Basic wrapper around std::hash or similar.
-static uint32_t hash_key(const std::string &key) {
+static uint32_t hash_key(const std::string& key) {
   // Use FNV-1a or similar simple hash
   uint32_t hash = 2166136261u;
   for (char c : key) {
@@ -19,8 +19,7 @@ Router::Router(size_t num_shards) : num_shards_(num_shards) {
 }
 
 void Router::initialize_ring(size_t num_shards) {
-  if (num_shards == 0)
-    return;
+  if (num_shards == 0) return;
   ring_.clear();
   for (size_t shard_id = 0; shard_id < num_shards; ++shard_id) {
     for (size_t v = 0; v < VIRTUAL_NODES_PER_SHARD; ++v) {
@@ -32,9 +31,8 @@ void Router::initialize_ring(size_t num_shards) {
   }
 }
 
-size_t Router::get_shard_id(const std::string &key) const {
-  if (num_shards_ == 0)
-    return 0;
+size_t Router::get_shard_id(const std::string& key) const {
+  if (num_shards_ == 0) return 0;
 
   if (ring_.empty()) {
     // Fallback
@@ -51,7 +49,7 @@ size_t Router::get_shard_id(const std::string &key) const {
 }
 
 // Standard CRC16 implementation (XMODEM)
-uint16_t Router::crc16(const std::string &key) {
+uint16_t Router::crc16(const std::string& key) {
   uint16_t crc = 0;
   for (char c : key) {
     crc = crc ^ ((uint16_t)c << 8);
@@ -65,5 +63,5 @@ uint16_t Router::crc16(const std::string &key) {
   return crc;
 }
 
-} // namespace core
-} // namespace quine
+}  // namespace core
+}  // namespace quine

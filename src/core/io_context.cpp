@@ -1,12 +1,15 @@
 #include "io_context.hpp"
-#include "liburing.h"
-#include "operation.hpp"
+
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <cerrno>
 #include <cstring>
-#include <fcntl.h>
 #include <iostream>
 #include <stdexcept>
-#include <unistd.h>
+
+#include "liburing.h"
+#include "operation.hpp"
 #ifdef __linux__
 #include <sys/eventfd.h>
 #endif
@@ -15,9 +18,9 @@ namespace quine {
 namespace core {
 
 struct IoContext::NotificationOp : public Operation {
-  IoContext *ctx;
-  uint64_t buffer = 0; // buffer for eventfd/pipe read
-  explicit NotificationOp(IoContext *c) : ctx(c) {}
+  IoContext* ctx;
+  uint64_t buffer = 0;  // buffer for eventfd/pipe read
+  explicit NotificationOp(IoContext* c) : ctx(c) {}
 
   void complete(int res) override {
     // Log error if any, but ignoring EAGAIN is fine-ish
@@ -38,18 +41,15 @@ struct IoContext::NotificationOp : public Operation {
 IoContext::IoContext(unsigned entries, uint32_t flags) {
   int ret = io_uring_queue_init(entries, &ring_, flags);
   if (ret < 0) {
-    throw std::system_error(-ret, std::generic_category(),
-                            "io_uring_queue_init failed");
+    throw std::system_error(-ret, std::generic_category(), "io_uring_queue_init failed");
   }
   setup_event_fd();
   notification_op_ = std::make_unique<NotificationOp>(this);
 }
 
 IoContext::~IoContext() {
-  if (event_fd_ >= 0)
-    close(event_fd_);
-  if (notify_fd_ >= 0)
-    close(notify_fd_);
+  if (event_fd_ >= 0) close(event_fd_);
+  if (notify_fd_ >= 0) close(notify_fd_);
   io_uring_queue_exit(&ring_);
 }
 
@@ -59,7 +59,7 @@ void IoContext::setup_event_fd() {
   if (event_fd_ < 0) {
     throw std::system_error(errno, std::generic_category(), "eventfd failed");
   }
-  notify_fd_ = event_fd_; // Same FD for eventfd
+  notify_fd_ = event_fd_;  // Same FD for eventfd
 #else
   // Fallback to pipe for macOS/BSD
   int fds[2];
@@ -88,19 +88,17 @@ void IoContext::set_notification_handler(std::function<void()> handler) {
 }
 
 void IoContext::submit_notification_read() {
-  if (event_fd_ < 0)
-    return;
+  if (event_fd_ < 0) return;
 
-  struct io_uring_sqe *sqe = get_sqe();
+  struct io_uring_sqe* sqe = get_sqe();
   // Use read on the event_fd
   // NotificationOp has the buffer member
-  io_uring_prep_read(sqe, event_fd_, &notification_op_->buffer,
-                     sizeof(uint64_t), 0);
+  io_uring_prep_read(sqe, event_fd_, &notification_op_->buffer, sizeof(uint64_t), 0);
   io_uring_sqe_set_data(sqe, notification_op_.get());
 }
 
-struct io_uring_sqe *IoContext::get_sqe() {
-  struct io_uring_sqe *sqe = io_uring_get_sqe(&ring_);
+struct io_uring_sqe* IoContext::get_sqe() {
+  struct io_uring_sqe* sqe = io_uring_get_sqe(&ring_);
   if (!sqe) {
     // Fallback: Submit existing and try again (Ring full)
     io_uring_submit(&ring_);
@@ -125,7 +123,7 @@ void IoContext::run() {
   while (true) {
     submit_and_wait(1);
 
-    struct io_uring_cqe *cqe;
+    struct io_uring_cqe* cqe;
     unsigned head;
     (void)head;
     unsigned count = 0;
@@ -133,7 +131,7 @@ void IoContext::run() {
     io_uring_for_each_cqe(&ring_, head, cqe) {
       count++;
       if (cqe->user_data) {
-        auto *op = reinterpret_cast<Operation *>(cqe->user_data);
+        auto* op = reinterpret_cast<Operation*>(cqe->user_data);
         op->complete(cqe->res);
       }
     }
@@ -144,5 +142,5 @@ void IoContext::run() {
   }
 }
 
-} // namespace core
-} // namespace quine
+}  // namespace core
+}  // namespace quine

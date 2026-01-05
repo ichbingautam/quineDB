@@ -13,8 +13,9 @@ namespace core {
 /// In a production shared-nothing system, this should be a lock-free SPSC or
 /// MPSC queue. For V1, we use std::mutex + std::deque for correctness and
 /// simplicity.
-template <typename T> class ItcChannel {
-public:
+template <typename T>
+class ItcChannel {
+ public:
   ItcChannel() = default;
 
   /// @brief Push an item into the channel.
@@ -41,14 +42,14 @@ public:
   /// @brief Consume all items currently in the queue.
   /// Useful for batch processing in the event loop.
   /// @param handler Function to call for each item.
-  void consume_all(std::function<void(T &&)> handler) {
+  void consume_all(std::function<void(T&&)> handler) {
     std::deque<T> batch;
     {
       std::lock_guard<std::mutex> lock(mutex_);
       batch.swap(queue_);
     }
 
-    for (auto &item : batch) {
+    for (auto& item : batch) {
       handler(std::move(item));
     }
   }
@@ -58,10 +59,10 @@ public:
     return queue_.empty();
   }
 
-private:
+ private:
   std::deque<T> queue_;
   mutable std::mutex mutex_;
 };
 
-} // namespace core
-} // namespace quine
+}  // namespace core
+}  // namespace quine

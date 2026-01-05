@@ -1,9 +1,10 @@
 #pragma once
 
-#include "consensus.hpp"
 #include <atomic>
 #include <iostream>
 #include <mutex>
+
+#include "consensus.hpp"
 
 namespace quine {
 namespace consensus {
@@ -13,9 +14,8 @@ namespace consensus {
 /// AppendEntries), etc. This skeleton provides the structure for integrating
 /// into QuineDB.
 class RaftConsensus : public ConsensusModule {
-public:
-  explicit RaftConsensus(size_t node_id)
-      : node_id_(node_id), state_(State::FOLLOWER) {}
+ public:
+  explicit RaftConsensus(size_t node_id) : node_id_(node_id), state_(State::FOLLOWER) {}
 
   void start() override {
     // Start election timer, etc.
@@ -28,7 +28,7 @@ public:
     running_ = false;
   }
 
-  bool replicate(const std::string &command) override {
+  bool replicate(const std::string& command) override {
     if (state_ != State::LEADER) {
       return false;
     }
@@ -38,7 +38,9 @@ public:
     return true;
   }
 
-  bool is_leader() const override { return state_ == State::LEADER; }
+  bool is_leader() const override {
+    return state_ == State::LEADER;
+  }
 
   // Raft specific methods
   void become_leader() {
@@ -52,7 +54,7 @@ public:
     state_ = State::FOLLOWER;
   }
 
-private:
+ private:
   enum class State { FOLLOWER, CANDIDATE, LEADER };
 
   size_t node_id_;
@@ -61,5 +63,5 @@ private:
   std::mutex mutex_;
 };
 
-} // namespace consensus
-} // namespace quine
+}  // namespace consensus
+}  // namespace quine

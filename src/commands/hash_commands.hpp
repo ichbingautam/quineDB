@@ -1,32 +1,34 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "../core/command.hpp"
 #include "../core/message.hpp"
 #include "../core/topology.hpp"
 #include "../storage/value.hpp"
-#include <string>
-#include <vector>
 
 namespace quine {
 namespace commands {
 
 class HSetCommand : public core::Command {
-public:
-  std::string name() const override { return "HSET"; }
+ public:
+  std::string name() const override {
+    return "HSET";
+  }
 
-  std::string execute(quine::core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
+  std::string execute(quine::core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
     // HSET key field value [field value ...]
     if (args.size() < 4 || (args.size() % 2 != 0))
       return "-ERR wrong number of arguments for 'hset'\r\n";
 
-    const std::string &key = args[1];
+    const std::string& key = args[1];
 
     if (topology.is_local(core_id, key)) {
-      auto *shard = topology.get_shard(core_id);
-      storage::Value *val = shard->get(key);
-      storage::Hash *hash_ptr = nullptr;
+      auto* shard = topology.get_shard(core_id);
+      storage::Value* val = shard->get(key);
+      storage::Hash* hash_ptr = nullptr;
 
       if (!val) {
         shard->set(key, storage::Hash{});
@@ -42,8 +44,8 @@ public:
 
       int created_fields = 0;
       for (size_t i = 2; i < args.size(); i += 2) {
-        const std::string &field = args[i];
-        const std::string &value = args[i + 1];
+        const std::string& field = args[i];
+        const std::string& value = args[i + 1];
         // std::map::insert returns pair<iterator, bool>, bool is true if
         // inserted using insert_or_assign in C++17 would be better to detect
         // creation vs update But strict generic Redis HSET returns number of
@@ -74,26 +76,25 @@ public:
 };
 
 class HGetCommand : public core::Command {
-public:
-  std::string name() const override { return "HGET"; }
+ public:
+  std::string name() const override {
+    return "HGET";
+  }
 
-  std::string execute(quine::core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
-    if (args.size() != 3)
-      return "-ERR wrong number of arguments for 'hget'\r\n";
+  std::string execute(quine::core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
+    if (args.size() != 3) return "-ERR wrong number of arguments for 'hget'\r\n";
 
-    const std::string &key = args[1];
-    const std::string &field = args[2];
+    const std::string& key = args[1];
+    const std::string& field = args[2];
 
     if (topology.is_local(core_id, key)) {
-      auto *shard = topology.get_shard(core_id);
-      storage::Value *val = shard->get(key);
+      auto* shard = topology.get_shard(core_id);
+      storage::Value* val = shard->get(key);
 
-      if (!val)
-        return "$-1\r\n";
+      if (!val) return "$-1\r\n";
 
-      auto *hash_ptr = std::get_if<storage::Hash>(val);
+      auto* hash_ptr = std::get_if<storage::Hash>(val);
       if (!hash_ptr)
         return "-ERR WRONGTYPE Operation against a key holding the wrong kind "
                "of value\r\n";
@@ -103,8 +104,7 @@ public:
         return "$-1\r\n";
       }
 
-      return "$" + std::to_string(it->second.size()) + "\r\n" + it->second +
-             "\r\n";
+      return "$" + std::to_string(it->second.size()) + "\r\n" + it->second + "\r\n";
 
     } else {
       size_t target_core = topology.get_target_core(args[1]);
@@ -122,36 +122,33 @@ public:
 };
 
 class HGetAllCommand : public core::Command {
-public:
-  std::string name() const override { return "HGETALL"; }
+ public:
+  std::string name() const override {
+    return "HGETALL";
+  }
 
-  std::string execute(quine::core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
-    if (args.size() != 2)
-      return "-ERR wrong number of arguments for 'hgetall'\r\n";
+  std::string execute(quine::core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
+    if (args.size() != 2) return "-ERR wrong number of arguments for 'hgetall'\r\n";
 
-    const std::string &key = args[1];
+    const std::string& key = args[1];
 
     if (topology.is_local(core_id, key)) {
-      auto *shard = topology.get_shard(core_id);
-      storage::Value *val = shard->get(key);
+      auto* shard = topology.get_shard(core_id);
+      storage::Value* val = shard->get(key);
 
-      if (!val)
-        return "*0\r\n";
+      if (!val) return "*0\r\n";
 
-      auto *hash_ptr = std::get_if<storage::Hash>(val);
+      auto* hash_ptr = std::get_if<storage::Hash>(val);
       if (!hash_ptr)
         return "-ERR WRONGTYPE Operation against a key holding the wrong kind "
                "of value\r\n";
 
       // Result is array of field, value, field, value...
       std::string resp = "*" + std::to_string(hash_ptr->size() * 2) + "\r\n";
-      for (const auto &pair : *hash_ptr) {
-        resp += "$" + std::to_string(pair.first.size()) + "\r\n" + pair.first +
-                "\r\n";
-        resp += "$" + std::to_string(pair.second.size()) + "\r\n" +
-                pair.second + "\r\n";
+      for (const auto& pair : *hash_ptr) {
+        resp += "$" + std::to_string(pair.first.size()) + "\r\n" + pair.first + "\r\n";
+        resp += "$" + std::to_string(pair.second.size()) + "\r\n" + pair.second + "\r\n";
       }
       return resp;
 
@@ -171,25 +168,24 @@ public:
 };
 
 class HDelCommand : public core::Command {
-public:
-  std::string name() const override { return "HDEL"; }
+ public:
+  std::string name() const override {
+    return "HDEL";
+  }
 
-  std::string execute(quine::core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
-    if (args.size() < 3)
-      return "-ERR wrong number of arguments for 'hdel'\r\n";
+  std::string execute(quine::core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
+    if (args.size() < 3) return "-ERR wrong number of arguments for 'hdel'\r\n";
 
-    const std::string &key = args[1];
+    const std::string& key = args[1];
 
     if (topology.is_local(core_id, key)) {
-      auto *shard = topology.get_shard(core_id);
-      storage::Value *val = shard->get(key);
+      auto* shard = topology.get_shard(core_id);
+      storage::Value* val = shard->get(key);
 
-      if (!val)
-        return ":0\r\n";
+      if (!val) return ":0\r\n";
 
-      auto *hash_ptr = std::get_if<storage::Hash>(val);
+      auto* hash_ptr = std::get_if<storage::Hash>(val);
       if (!hash_ptr)
         return "-ERR WRONGTYPE Operation against a key holding the wrong kind "
                "of value\r\n";
@@ -207,10 +203,9 @@ public:
     }
   }
 
-private:
-  std::string forward_request(core::Topology &topology, size_t core_id,
-                              uint32_t conn_id,
-                              const std::vector<std::string> &args) {
+ private:
+  std::string forward_request(core::Topology& topology, size_t core_id, uint32_t conn_id,
+                              const std::vector<std::string>& args) {
     size_t target_core = topology.get_target_core(args[1]);
     core::Message msg;
     msg.type = core::MessageType::REQUEST;
@@ -225,25 +220,24 @@ private:
 };
 
 class HLenCommand : public core::Command {
-public:
-  std::string name() const override { return "HLEN"; }
+ public:
+  std::string name() const override {
+    return "HLEN";
+  }
 
-  std::string execute(quine::core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
-    if (args.size() != 2)
-      return "-ERR wrong number of arguments for 'hlen'\r\n";
+  std::string execute(quine::core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
+    if (args.size() != 2) return "-ERR wrong number of arguments for 'hlen'\r\n";
 
-    const std::string &key = args[1];
+    const std::string& key = args[1];
 
     if (topology.is_local(core_id, key)) {
-      auto *shard = topology.get_shard(core_id);
-      storage::Value *val = shard->get(key);
+      auto* shard = topology.get_shard(core_id);
+      storage::Value* val = shard->get(key);
 
-      if (!val)
-        return ":0\r\n";
+      if (!val) return ":0\r\n";
 
-      auto *hash_ptr = std::get_if<storage::Hash>(val);
+      auto* hash_ptr = std::get_if<storage::Hash>(val);
       if (!hash_ptr)
         return "-ERR WRONGTYPE Operation against a key holding the wrong kind "
                "of value\r\n";
@@ -255,10 +249,9 @@ public:
     }
   }
 
-private:
-  std::string forward_request(core::Topology &topology, size_t core_id,
-                              uint32_t conn_id,
-                              const std::vector<std::string> &args) {
+ private:
+  std::string forward_request(core::Topology& topology, size_t core_id, uint32_t conn_id,
+                              const std::vector<std::string>& args) {
     size_t target_core = topology.get_target_core(args[1]);
     core::Message msg;
     msg.type = core::MessageType::REQUEST;
@@ -272,5 +265,5 @@ private:
   }
 };
 
-} // namespace commands
-} // namespace quine
+}  // namespace commands
+}  // namespace quine

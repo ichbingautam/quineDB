@@ -1,6 +1,5 @@
 #pragma once
 
-#include "value.hpp"
 #include <algorithm>
 #include <functional>
 #include <optional>
@@ -8,6 +7,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "value.hpp"
 
 namespace quine {
 namespace storage {
@@ -18,10 +19,10 @@ namespace storage {
 /// Current limitation: Does not resize automatically (fixed size for V1).
 /// TODO: Implement resizing and Robin Hood hashing.
 class HashMap {
-public:
+ public:
   struct Entry {
     std::string key;
-    Value value; // [CHANGED]
+    Value value;  // [CHANGED]
     bool occupied = false;
     bool deleted = false;
   };
@@ -58,7 +59,7 @@ public:
   }
 
   /// @brief Retrieve a value by key.
-  Value *get(std::string_view key) {
+  Value* get(std::string_view key) {
     size_t idx = hash(key);
     size_t start_idx = idx;
 
@@ -67,15 +68,14 @@ public:
         return &entries_[idx].value;
       }
       idx = (idx + 1) % capacity_;
-      if (idx == start_idx)
-        return nullptr;
+      if (idx == start_idx) return nullptr;
     }
     return nullptr;
   }
 
   // Const overflow for get
-  const Value *get(std::string_view key) const {
-    return const_cast<HashMap *>(this)->get(key);
+  const Value* get(std::string_view key) const {
+    return const_cast<HashMap*>(this)->get(key);
   }
 
   /// @brief Remove a key.
@@ -86,27 +86,27 @@ public:
     while (entries_[idx].occupied) {
       if (!entries_[idx].deleted && entries_[idx].key == key) {
         entries_[idx].deleted = true;
-        entries_[idx].value = std::monostate{}; // Clear memory
+        entries_[idx].value = std::monostate{};  // Clear memory
         size_--;
         return true;
       }
       idx = (idx + 1) % capacity_;
-      if (idx == start_idx)
-        return false;
+      if (idx == start_idx) return false;
     }
     return false;
   }
 
   /// @brief Iterate over all valid entries
-  template <typename F> void for_each(F callback) const {
-    for (const auto &entry : entries_) {
+  template <typename F>
+  void for_each(F callback) const {
+    for (const auto& entry : entries_) {
       if (entry.occupied && !entry.deleted) {
         callback(entry.key, entry.value);
       }
     }
   }
 
-private:
+ private:
   std::vector<Entry> entries_;
   size_t capacity_;
   size_t size_;
@@ -116,5 +116,5 @@ private:
   }
 };
 
-} // namespace storage
-} // namespace quine
+}  // namespace storage
+}  // namespace quine

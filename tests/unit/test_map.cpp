@@ -1,7 +1,9 @@
-#include "storage/shard.hpp"
-#include <chrono>
 #include <gtest/gtest.h>
+
+#include <chrono>
 #include <thread>
+
+#include "storage/shard.hpp"
 
 using namespace quine::storage;
 
@@ -14,12 +16,12 @@ TEST(HashMapTest, BasicPutGet) {
   Value v1 = "value1";
   EXPECT_TRUE(map.put("key1", v1));
 
-  Value *res = map.get("key1");
+  Value* res = map.get("key1");
   ASSERT_NE(res, nullptr);
   EXPECT_EQ(std::get<std::string>(*res), "value1");
 
   Value v2 = "value2";
-  EXPECT_FALSE(map.put("key1", v2)); // Update
+  EXPECT_FALSE(map.put("key1", v2));  // Update
   res = map.get("key1");
   EXPECT_EQ(std::get<std::string>(*res), "value2");
 }
@@ -29,7 +31,7 @@ TEST(HashMapTest, Delete) {
   map.put("key1", "val");
   EXPECT_TRUE(map.del("key1"));
   EXPECT_EQ(map.get("key1"), nullptr);
-  EXPECT_FALSE(map.del("key1")); // Double delete
+  EXPECT_FALSE(map.del("key1"));  // Double delete
 }
 
 TEST(HashMapTest, CollisionHandling) {
@@ -54,7 +56,7 @@ TEST(HashMapTest, CollisionHandling) {
 TEST(ShardTest, SetGet) {
   Shard shard;
   shard.set("foo", "bar");
-  auto *val = shard.get("foo");
+  auto* val = shard.get("foo");
   ASSERT_NE(val, nullptr);
   EXPECT_EQ(std::get<std::string>(*val), "bar");
 }
@@ -96,8 +98,8 @@ TEST(ShardTest, SetCommands) {
   Shard shard;
   // Helper to construct set
   shard.set("myset", Set{});
-  auto *val = shard.get("myset");
-  auto *set_ptr = std::get_if<Set>(val);
+  auto* val = shard.get("myset");
+  auto* set_ptr = std::get_if<Set>(val);
   ASSERT_NE(set_ptr, nullptr);
 
   set_ptr->insert("a");

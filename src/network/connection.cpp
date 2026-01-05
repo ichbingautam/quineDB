@@ -1,12 +1,15 @@
 #include "connection.hpp"
-#include "../commands/registry.hpp"
-#include "../core/io_context.hpp" // [NEW] Needed for full definition
-#include "liburing.h"
-#include <cctype> // for std::toupper
-#include <cstring>
+
 #include <fcntl.h>
-#include <iostream>
 #include <unistd.h>
+
+#include <cctype>  // for std::toupper
+#include <cstring>
+#include <iostream>
+
+#include "../commands/registry.hpp"
+#include "../core/io_context.hpp"  // [NEW] Needed for full definition
+#include "liburing.h"
 
 namespace quine {
 namespace network {
@@ -14,17 +17,21 @@ namespace network {
 // --- Nested Operation Definitions ---
 
 struct Connection::ReadOp : public core::Operation {
-  Connection *conn;
-  core::IoContext &ctx;
-  explicit ReadOp(Connection *c, core::IoContext &io) : conn(c), ctx(io) {}
-  void complete(int res) override { conn->handle_read(res, ctx); }
+  Connection* conn;
+  core::IoContext& ctx;
+  explicit ReadOp(Connection* c, core::IoContext& io) : conn(c), ctx(io) {}
+  void complete(int res) override {
+    conn->handle_read(res, ctx);
+  }
 };
 
 struct Connection::WriteOp : public core::Operation {
-  Connection *conn;
-  core::IoContext &ctx;
-  explicit WriteOp(Connection *c, core::IoContext &io) : conn(c), ctx(io) {}
-  void complete(int res) override { conn->handle_write(res, ctx); }
+  Connection* conn;
+  core::IoContext& ctx;
+  explicit WriteOp(Connection* c, core::IoContext& io) : conn(c), ctx(io) {}
+  void complete(int res) override {
+    conn->handle_write(res, ctx);
+  }
 };
 
 // --- Connection Implementation ---
@@ -32,7 +39,7 @@ struct Connection::WriteOp : public core::Operation {
 // Static counter for connection IDs
 static std::atomic<uint32_t> next_conn_id{1};
 
-Connection::Connection(int fd, core::Topology &topology, size_t core_id)
+Connection::Connection(int fd, core::Topology& topology, size_t core_id)
     : fd_(fd), id_(next_conn_id++), topology_(topology), core_id_(core_id) {
   // Set non-blocking
   int flags = fcntl(fd_, F_GETFL, 0);
@@ -48,37 +55,38 @@ Connection::~Connection() {
   }
 }
 
-void Connection::resize_buffer(size_t size) { read_buffer_.resize(size); }
+void Connection::resize_buffer(size_t size) {
+  read_buffer_.resize(size);
+}
 
-void Connection::start(core::IoContext &ctx) {
+void Connection::start(core::IoContext& ctx) {
   read_op_ = std::make_unique<ReadOp>(this, ctx);
   write_op_ = std::make_unique<WriteOp>(this, ctx);
 
   submit_read(ctx);
 }
 
-void Connection::submit_read(core::IoContext &ctx) {
-  struct io_uring_sqe *sqe = ctx.get_sqe();
+void Connection::submit_read(core::IoContext& ctx) {
+  struct io_uring_sqe* sqe = ctx.get_sqe();
   io_uring_prep_read(sqe, fd_, read_buffer_.data(), read_buffer_.capacity(), 0);
   io_uring_sqe_set_data(sqe, read_op_.get());
 }
 
-void Connection::submit_write(core::IoContext &ctx, std::vector<char> data) {
+void Connection::submit_write(core::IoContext& ctx, std::vector<char> data) {
   write_queue_.push_back(std::move(data));
 
   if (!is_writing_) {
     is_writing_ = true;
-    auto &current_data = write_queue_.front();
-    struct io_uring_sqe *sqe = ctx.get_sqe();
+    auto& current_data = write_queue_.front();
+    struct io_uring_sqe* sqe = ctx.get_sqe();
     io_uring_prep_write(sqe, fd_, current_data.data(), current_data.size(), 0);
     io_uring_sqe_set_data(sqe, write_op_.get());
   }
 }
 
-void Connection::handle_read(int res, core::IoContext &ctx) {
+void Connection::handle_read(int res, core::IoContext& ctx) {
   if (res <= 0) {
-    if (on_disconnect_)
-      on_disconnect_(id_);
+    if (on_disconnect_) on_disconnect_(id_);
     delete this;
     return;
   }
@@ -94,11 +102,10 @@ void Connection::handle_read(int res, core::IoContext &ctx) {
   submit_read(ctx);
 }
 
-void Connection::handle_write(int res, core::IoContext &ctx) {
+void Connection::handle_write(int res, core::IoContext& ctx) {
   if (res < 0) {
     std::cerr << "Write error: " << -res << std::endl;
-    if (on_disconnect_)
-      on_disconnect_(id_);
+    if (on_disconnect_) on_disconnect_(id_);
     delete this;
     return;
   }
@@ -108,8 +115,8 @@ void Connection::handle_write(int res, core::IoContext &ctx) {
   }
 
   if (!write_queue_.empty()) {
-    auto &current_data = write_queue_.front();
-    struct io_uring_sqe *sqe = ctx.get_sqe();
+    auto& current_data = write_queue_.front();
+    struct io_uring_sqe* sqe = ctx.get_sqe();
     io_uring_prep_write(sqe, fd_, current_data.data(), current_data.size(), 0);
     io_uring_sqe_set_data(sqe, write_op_.get());
   } else {
@@ -117,10 +124,9 @@ void Connection::handle_write(int res, core::IoContext &ctx) {
   }
 }
 
-std::vector<char> Connection::handle_data(const char *data, size_t len) {
+std::vector<char> Connection::handle_data(const char* data, size_t len) {
   size_t consumed = 0;
-  auto result =
-      parser_.consume(reinterpret_cast<const uint8_t *>(data), len, consumed);
+  auto result = parser_.consume(reinterpret_cast<const uint8_t*>(data), len, consumed);
 
   std::vector<char> response;
 
@@ -141,18 +147,15 @@ std::vector<char> Connection::handle_data(const char *data, size_t len) {
   return response;
 }
 
-std::string Connection::execute_command(const std::vector<std::string> &args) {
-  if (args.empty())
-    return "-ERR empty command\r\n";
+std::string Connection::execute_command(const std::vector<std::string>& args) {
+  if (args.empty()) return "-ERR empty command\r\n";
 
   std::string cmd_name = args[0];
   // poor man's to_upper
-  for (auto &c : cmd_name)
-    c = std::toupper(c);
+  for (auto& c : cmd_name) c = std::toupper(c);
 
   // Use Registry
-  auto *cmd =
-      quine::commands::CommandRegistry::instance().get_command(cmd_name);
+  auto* cmd = quine::commands::CommandRegistry::instance().get_command(cmd_name);
   if (cmd) {
     return cmd->execute(topology_, core_id_, id_, args);
   }
@@ -165,5 +168,5 @@ std::string Connection::execute_command(const std::vector<std::string> &args) {
   return "-ERR unknown command '" + cmd_name + "'\r\n";
 }
 
-} // namespace network
-} // namespace quine
+}  // namespace network
+}  // namespace quine

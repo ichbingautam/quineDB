@@ -23,9 +23,8 @@ struct ZSetEntry {
   double score;
   std::string member;
 
-  bool operator<(const ZSetEntry &other) const {
-    if (score != other.score)
-      return score < other.score;
+  bool operator<(const ZSetEntry& other) const {
+    if (score != other.score) return score < other.score;
     return member < other.member;
   }
 };
@@ -44,7 +43,7 @@ struct ZSet {
     tree.insert(entry);
   }
 
-  bool erase(const std::string &member) {
+  bool erase(const std::string& member) {
     auto it = dict.find(member);
     if (it != dict.end()) {
       tree.erase({it->second, member});
@@ -54,33 +53,39 @@ struct ZSet {
     return false;
   }
 
-  size_t size() const { return tree.size(); }
-  auto begin() const { return tree.begin(); }
-  auto end() const { return tree.end(); }
+  size_t size() const {
+    return tree.size();
+  }
+  auto begin() const {
+    return tree.begin();
+  }
+  auto end() const {
+    return tree.end();
+  }
 };
 
 // Polymorphic container
-using Value = std::variant<std::monostate, // Empty/Null
+using Value = std::variant<std::monostate,  // Empty/Null
                            String, List, Set, Hash, ZSet>;
 
 enum class ValueType { NONE = 0, STRING, LIST, SET, HASH, ZSET };
 
-inline ValueType get_type(const Value &v) {
+inline ValueType get_type(const Value& v) {
   switch (v.index()) {
-  case 1:
-    return ValueType::STRING;
-  case 2:
-    return ValueType::LIST;
-  case 3:
-    return ValueType::SET;
-  case 4:
-    return ValueType::HASH;
-  case 5:
-    return ValueType::ZSET;
-  default:
-    return ValueType::NONE;
+    case 1:
+      return ValueType::STRING;
+    case 2:
+      return ValueType::LIST;
+    case 3:
+      return ValueType::SET;
+    case 4:
+      return ValueType::HASH;
+    case 5:
+      return ValueType::ZSET;
+    default:
+      return ValueType::NONE;
   }
 }
 
-} // namespace storage
-} // namespace quine
+}  // namespace storage
+}  // namespace quine

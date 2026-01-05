@@ -1,28 +1,32 @@
 #include "tcp_server.hpp"
+
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <cstring>
+#include <iostream>
+#include <stdexcept>
+
 #include "../core/operation.hpp"
 #include "../network/connection.hpp"
 #include "liburing.h"
-#include <cstring>
-#include <fcntl.h>
-#include <iostream>
-#include <netinet/in.h>
-#include <stdexcept>
-#include <sys/socket.h>
-#include <unistd.h>
 
 namespace quine {
 namespace network {
 
 struct TcpServer::AcceptOp : public core::Operation {
-  TcpServer *server;
+  TcpServer* server;
 
-  explicit AcceptOp(TcpServer *s) : server(s) {}
+  explicit AcceptOp(TcpServer* s) : server(s) {}
 
-  void complete(int res) override { server->handle_accept(res); }
+  void complete(int res) override {
+    server->handle_accept(res);
+  }
 };
 
-TcpServer::TcpServer(core::IoContext &io, int port, core::Topology &top,
-                     size_t core_id)
+TcpServer::TcpServer(core::IoContext& io, int port, core::Topology& top, size_t core_id)
     : io_(io), topology_(top), core_id_(core_id), port_(port), server_fd_(-1) {
   accept_op_ = std::make_unique<AcceptOp>(this);
   setup_listener();
@@ -42,24 +46,20 @@ void TcpServer::setup_listener() {
 
   // Set non-blocking
   int flags = fcntl(server_fd_, F_GETFL, 0);
-  if (flags < 0)
-    throw std::system_error(errno, std::generic_category(), "fcntl get failed");
+  if (flags < 0) throw std::system_error(errno, std::generic_category(), "fcntl get failed");
   if (fcntl(server_fd_, F_SETFL, flags | O_NONBLOCK) < 0) {
-    throw std::system_error(errno, std::generic_category(),
-                            "fcntl set nonblock failed");
+    throw std::system_error(errno, std::generic_category(), "fcntl set nonblock failed");
   }
 
   int opt = 1;
   // SO_REUSEPORT is crucial for thread-per-core scalability
   if (setsockopt(server_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-    throw std::system_error(errno, std::generic_category(),
-                            "setsockopt(SO_REUSEADDR) failed");
+    throw std::system_error(errno, std::generic_category(), "setsockopt(SO_REUSEADDR) failed");
   }
 
   // SO_REUSEPORT is crucial for thread-per-core scalability
   if (setsockopt(server_fd_, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0) {
-    throw std::system_error(errno, std::generic_category(),
-                            "setsockopt(SO_REUSEPORT) failed");
+    throw std::system_error(errno, std::generic_category(), "setsockopt(SO_REUSEPORT) failed");
   }
 
   struct sockaddr_in addr;
@@ -68,7 +68,7 @@ void TcpServer::setup_listener() {
   addr.sin_addr.s_addr = INADDR_ANY;
   addr.sin_port = htons(port_);
 
-  if (bind(server_fd_, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+  if (bind(server_fd_, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
     throw std::system_error(errno, std::generic_category(), "bind failed");
   }
 
@@ -83,7 +83,7 @@ void TcpServer::start() {
 }
 
 void TcpServer::submit_accept() {
-  struct io_uring_sqe *sqe = io_.get_sqe();
+  struct io_uring_sqe* sqe = io_.get_sqe();
 
   // We need to pass the address structure to accept if we want client info
   // For now, pass nullptr/0 if we don't care, or add members to AcceptOp if we
@@ -117,12 +117,12 @@ void TcpServer::handle_accept(int fd) {
   conn->start(io_);
 
   // Keeping it alive (hacky for now, need a container in TcpServer)
-  conn.release(); // Leaking for V0 proof of concept to avoid immediate
-                  // destruction
+  conn.release();  // Leaking for V0 proof of concept to avoid immediate
+                   // destruction
 
   // Accept next
   submit_accept();
 }
 
-} // namespace network
-} // namespace quine
+}  // namespace network
+}  // namespace quine

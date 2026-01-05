@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
   cmake \
   git \
   liburing-dev \
+  pkg-config \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

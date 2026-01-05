@@ -1,23 +1,24 @@
 #pragma once
 
+#include <iostream>
+
 #include "../core/command.hpp"
 #include "../core/message.hpp"
 #include "../core/topology.hpp"
 #include "../storage/value.hpp"
-#include <iostream>
 
 namespace quine {
 namespace commands {
 
 class SetCommand : public core::Command {
-public:
-  std::string name() const override { return "SET"; }
+ public:
+  std::string name() const override {
+    return "SET";
+  }
 
-  std::string execute(core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
-    if (args.size() != 3)
-      return "-ERR wrong number of arguments for 'set'\r\n";
+  std::string execute(core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
+    if (args.size() != 3) return "-ERR wrong number of arguments for 'set'\r\n";
 
     if (topology.is_local(core_id, args[1])) {
       // Construct Value variant from string
@@ -37,27 +38,26 @@ public:
       topology.get_channel(target_core)->push(msg);
       topology.notify_core(target_core);
 
-      return ""; // Async response
+      return "";  // Async response
     }
   }
 };
 
 class GetCommand : public core::Command {
-public:
-  std::string name() const override { return "GET"; }
+ public:
+  std::string name() const override {
+    return "GET";
+  }
 
-  std::string execute(core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
-    if (args.size() != 2)
-      return "-ERR wrong number of arguments for 'get'\r\n";
+  std::string execute(core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
+    if (args.size() != 2) return "-ERR wrong number of arguments for 'get'\r\n";
 
     if (topology.is_local(core_id, args[1])) {
-      storage::Value *val = topology.get_shard(core_id)->get(args[1]);
+      storage::Value* val = topology.get_shard(core_id)->get(args[1]);
       if (val) {
         if (auto str_val = std::get_if<std::string>(val)) {
-          return "$" + std::to_string(str_val->size()) + "\r\n" + *str_val +
-                 "\r\n";
+          return "$" + std::to_string(str_val->size()) + "\r\n" + *str_val + "\r\n";
         } else {
           return "-ERR WRONGTYPE Operation against a key holding the wrong "
                  "kind of value\r\n";
@@ -84,14 +84,14 @@ public:
 };
 
 class DelCommand : public core::Command {
-public:
-  std::string name() const override { return "DEL"; }
+ public:
+  std::string name() const override {
+    return "DEL";
+  }
 
-  std::string execute(quine::core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
-    if (args.size() != 2)
-      return "-ERR wrong number of arguments for 'del'\r\n";
+  std::string execute(quine::core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
+    if (args.size() != 2) return "-ERR wrong number of arguments for 'del'\r\n";
 
     if (topology.is_local(core_id, args[1])) {
       bool deleted = topology.get_shard(core_id)->del(args[1]);
@@ -114,5 +114,5 @@ public:
   }
 };
 
-} // namespace commands
-} // namespace quine
+}  // namespace commands
+}  // namespace quine

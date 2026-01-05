@@ -6,7 +6,7 @@
 namespace quine {
 namespace persistence {
 
-static const char *RDB_MAGIC = "QUINEDB";
+static const char* RDB_MAGIC = "QUINEDB";
 static const uint32_t RDB_VERSION = 1;
 
 enum class RdbType : uint8_t {
@@ -19,5 +19,5 @@ enum class RdbType : uint8_t {
   END_OF_FILE = 255
 };
 
-} // namespace persistence
-} // namespace quine
+}  // namespace persistence
+}  // namespace quine

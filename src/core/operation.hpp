@@ -14,5 +14,5 @@ struct Operation {
   virtual void complete(int res) = 0;
 };
 
-} // namespace core
-} // namespace quine
+}  // namespace core
+}  // namespace quine

@@ -1,11 +1,13 @@
-#include "storage/shard.hpp"
 #include <benchmark/benchmark.h>
+
 #include <string>
 #include <vector>
 
+#include "storage/shard.hpp"
+
 using namespace quine::storage;
 
-static void BM_HashMapPut(benchmark::State &state) {
+static void BM_HashMapPut(benchmark::State& state) {
   HashMap map(100000);
   int i = 0;
   for (auto _ : state) {
@@ -13,7 +15,7 @@ static void BM_HashMapPut(benchmark::State &state) {
     map.put(key, "value");
     if (i >= 80000) {
       state.PauseTiming();
-      map = HashMap(100000); // Reset
+      map = HashMap(100000);  // Reset
       i = 0;
       state.ResumeTiming();
     }
@@ -21,15 +23,14 @@ static void BM_HashMapPut(benchmark::State &state) {
 }
 BENCHMARK(BM_HashMapPut);
 
-static void BM_ShardSet(benchmark::State &state) {
+static void BM_ShardSet(benchmark::State& state) {
   Shard shard;
   // Shard uses default capacity (1024), so it will fill up quickly.
   // Ideally Shard should be configurable or resizeable.
   // For V1 benchmark, we reuse keys to avoid crash.
 
   std::vector<std::string> keys;
-  for (int i = 0; i < 1000; ++i)
-    keys.push_back("key" + std::to_string(i));
+  for (int i = 0; i < 1000; ++i) keys.push_back("key" + std::to_string(i));
 
   int i = 0;
   for (auto _ : state) {
@@ -39,7 +40,7 @@ static void BM_ShardSet(benchmark::State &state) {
 }
 BENCHMARK(BM_ShardSet);
 
-static void BM_ShardGet(benchmark::State &state) {
+static void BM_ShardGet(benchmark::State& state) {
   Shard shard;
   std::vector<std::string> keys;
   for (int i = 0; i < 1000; ++i) {

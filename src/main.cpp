@@ -1,12 +1,13 @@
+#include <iostream>
+#include <thread>
+#include <unordered_map>
+#include <vector>
+
 #include "core/config.hpp"
 #include "core/io_context.hpp"
 #include "core/topology.hpp"
 #include "network/connection.hpp"
 #include "network/tcp_server.hpp"
-#include <iostream>
-#include <thread>
-#include <unordered_map>
-#include <vector>
 
 /// @file main.cpp
 /// @brief Entry point for the QuineDB Server.
@@ -21,14 +22,13 @@
 #include "commands/string_commands.hpp"
 
 // Worker thread function
-void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
+void worker_main(size_t core_id, int port, quine::core::Topology& topology) {
   try {
     // 1. Initialize Thread-Local Event Loop
     quine::core::IoContext ctx;
 
     // Registry for local connections (ID -> Ptr)
-    std::unordered_map<uint32_t, quine::network::Connection *>
-        local_connections;
+    std::unordered_map<uint32_t, quine::network::Connection*> local_connections;
 
     topology.register_notify_fd(core_id, ctx.get_notify_fd());
 
@@ -41,33 +41,29 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
     quine::network::TcpServer server(ctx, port, topology, core_id);
 
     // Track new connections
-    server.set_on_connect([&](quine::network::Connection *conn) {
-      local_connections[conn->get_id()] = conn;
-    });
+    server.set_on_connect(
+        [&](quine::network::Connection* conn) { local_connections[conn->get_id()] = conn; });
 
-    server.set_on_disconnect(
-        [&](uint32_t conn_id) { local_connections.erase(conn_id); });
+    server.set_on_disconnect([&](uint32_t conn_id) { local_connections.erase(conn_id); });
 
     server.start();
 
     // 4. Register ITC Notification Handler
-    auto *my_channel = topology.get_channel(core_id);
+    auto* my_channel = topology.get_channel(core_id);
     ctx.set_notification_handler([&]() {
       // Process all pending messages in the inbox
-      my_channel->consume_all([&](quine::core::Message &&msg) {
+      my_channel->consume_all([&](quine::core::Message&& msg) {
         if (msg.type == quine::core::MessageType::REQUEST) {
           // Execute on local shard (Remote Request)
           std::string cmd_name = msg.args[0];
           std::string response_str;
 
           // Use Registry to execute command
-          auto *cmd = quine::commands::CommandRegistry::instance().get_command(
-              cmd_name);
+          auto* cmd = quine::commands::CommandRegistry::instance().get_command(cmd_name);
           if (cmd) {
             // Execute the command directly on this core
             // Note: msg.args contains the full command [SET, key, value]
-            response_str =
-                cmd->execute(topology, core_id, msg.conn_id, msg.args);
+            response_str = cmd->execute(topology, core_id, msg.conn_id, msg.args);
             // Since we are on the target core, execute() should return the
             // result string and NOT perform forwarding (as is_local will be
             // true). However, if the command returns empty string (which
@@ -82,12 +78,12 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
           if (!response_str.empty()) {
             quine::core::Message reply;
             reply.type = quine::core::MessageType::RESPONSE;
-            reply.origin_core_id = core_id; // Sender (us)
-            reply.conn_id = msg.conn_id;    // Route to original connection
+            reply.origin_core_id = core_id;  // Sender (us)
+            reply.conn_id = msg.conn_id;     // Route to original connection
             reply.payload = response_str;
             reply.success = true;
 
-            auto *origin_channel = topology.get_channel(msg.origin_core_id);
+            auto* origin_channel = topology.get_channel(msg.origin_core_id);
             if (origin_channel) {
               origin_channel->push(reply);
               topology.notify_core(msg.origin_core_id);
@@ -98,7 +94,7 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
           // Received result from another core for one of our connections
           auto it = local_connections.find(msg.conn_id);
           if (it != local_connections.end()) {
-            auto *conn = it->second;
+            auto* conn = it->second;
             // Convert string to vector<char>
             std::vector<char> resp_data(msg.payload.begin(), msg.payload.end());
             conn->submit_write(ctx, std::move(resp_data));
@@ -107,12 +103,12 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
       });
     });
 
-    std::cout << "[Core " << core_id << "] Started on thread "
-              << std::this_thread::get_id() << std::endl;
+    std::cout << "[Core " << core_id << "] Started on thread " << std::this_thread::get_id()
+              << std::endl;
 
     // 4. Run Event Loop
     ctx.run();
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "[Core " << core_id << "] Error: " << e.what() << std::endl;
   }
 }
@@ -127,34 +123,32 @@ void worker_main(size_t core_id, int port, quine::core::Topology &topology) {
 // ... (worker_main stays same, skipping lines 23-113) ...
 
 // Start of main()
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   (void)argc;
   (void)argv;
   // 1. Load Configuration
   quine::core::Config config;
 
-  unsigned int n_threads = config.worker_threads > 0
-                               ? config.worker_threads
-                               : std::thread::hardware_concurrency();
+  unsigned int n_threads =
+      config.worker_threads > 0 ? config.worker_threads : std::thread::hardware_concurrency();
 
   // Initialize Topology FIRST because RDB loader needs it
   quine::core::Topology topology(n_threads);
 
-  std::cout << "QuineDB Server starting on " << n_threads << " cores, port "
-            << config.port << std::endl;
-  std::cout << "RDB Persistence: " << config.rdb_filename << " ("
-            << config.save_params.size() << " save points)" << std::endl;
+  std::cout << "QuineDB Server starting on " << n_threads << " cores, port " << config.port
+            << std::endl;
+  std::cout << "RDB Persistence: " << config.rdb_filename << " (" << config.save_params.size()
+            << " save points)" << std::endl;
 
   // Try loading RDB
   if (quine::persistence::RdbManager::load(topology, config.rdb_filename)) {
-    std::cout << "[RDB] Loaded successfully from " << config.rdb_filename
-              << std::endl;
+    std::cout << "[RDB] Loaded successfully from " << config.rdb_filename << std::endl;
   } else {
     std::cout << "[RDB] No valid RDB file found, starting empty." << std::endl;
   }
 
   // 1. Initialize Registry
-  auto &registry = quine::commands::CommandRegistry::instance();
+  auto& registry = quine::commands::CommandRegistry::instance();
   registry.register_command(std::make_unique<quine::commands::SetCommand>());
   registry.register_command(std::make_unique<quine::commands::GetCommand>());
   registry.register_command(std::make_unique<quine::commands::DelCommand>());
@@ -167,15 +161,13 @@ int main(int argc, char *argv[]) {
   registry.register_command(std::make_unique<quine::commands::LLenCommand>());
 
   registry.register_command(std::make_unique<quine::commands::SAddCommand>());
-  registry.register_command(
-      std::make_unique<quine::commands::SMembersCommand>());
+  registry.register_command(std::make_unique<quine::commands::SMembersCommand>());
   registry.register_command(std::make_unique<quine::commands::SCardCommand>());
   registry.register_command(std::make_unique<quine::commands::SRemCommand>());
 
   registry.register_command(std::make_unique<quine::commands::HSetCommand>());
   registry.register_command(std::make_unique<quine::commands::HGetCommand>());
-  registry.register_command(
-      std::make_unique<quine::commands::HGetAllCommand>());
+  registry.register_command(std::make_unique<quine::commands::HGetAllCommand>());
   registry.register_command(std::make_unique<quine::commands::HDelCommand>());
   registry.register_command(std::make_unique<quine::commands::HLenCommand>());
 
@@ -197,9 +189,8 @@ int main(int argc, char *argv[]) {
   }
 
   // 3. Wait for threads
-  for (auto &t : threads) {
-    if (t.joinable())
-      t.join();
+  for (auto& t : threads) {
+    if (t.joinable()) t.join();
   }
 
   return 0;

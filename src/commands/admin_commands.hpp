@@ -8,12 +8,13 @@ namespace quine {
 namespace commands {
 
 class SaveCommand : public core::Command {
-public:
-  std::string name() const override { return "SAVE"; }
+ public:
+  std::string name() const override {
+    return "SAVE";
+  }
 
-  std::string execute(quine::core::Topology &topology, size_t core_id,
-                      uint32_t conn_id,
-                      const std::vector<std::string> &args) override {
+  std::string execute(quine::core::Topology& topology, size_t core_id, uint32_t conn_id,
+                      const std::vector<std::string>& args) override {
     (void)core_id;
     (void)conn_id;
     (void)args;
@@ -29,5 +30,5 @@ public:
   }
 };
 
-} // namespace commands
-} // namespace quine
+}  // namespace commands
+}  // namespace quine
