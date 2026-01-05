@@ -62,7 +62,11 @@ TEST(ShardTest, SetGet) {
 TEST(ShardTest, Expiry) {
   Shard shard;
   // Set 100ms TTL
-  shard.set("temp", "val", 100);
+  shard.set("temp", "val");
+  auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                 std::chrono::system_clock::now().time_since_epoch())
+                 .count();
+  shard.set_expiry("temp", now + 100);
 
   // Immediate get
   ASSERT_NE(shard.get("temp"), nullptr);
@@ -76,7 +80,11 @@ TEST(ShardTest, Expiry) {
 
 TEST(ShardTest, UpdateClearsExpiry) {
   Shard shard;
-  shard.set("persistent", "val", 100);
+  shard.set("persistent", "val");
+  auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                 std::chrono::system_clock::now().time_since_epoch())
+                 .count();
+  shard.set_expiry("persistent", now + 100);
   // Update without TTL
   shard.set("persistent", "newval");
 
