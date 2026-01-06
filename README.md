@@ -3,7 +3,6 @@
 **QuineDB** is a high-performance, distributed, in-memory key-value store built with modern C++. It is designed to demonstrate advanced systems programming concepts, including thread-per-core architecture, asynchronous I/O with `io_uring`, and shared-nothing sharding.
 
 ## Features
-
 *   **High Performance Architecture**:
     *   **Thread-per-core**: Each core manages its own shard of data, eliminating lock contention on the data path.
     *   **Shared-Nothing**: No shared memory between cores; strict partitioning.
