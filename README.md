@@ -1,21 +1,21 @@
 # QuineDB
 
-**QuineDB** is a high-performance, distributed, in-memory key-value store built with modern C++. It is designed to demonstrate advanced systems programming concepts, including thread-per-core architecture, asynchronous I/O with `io_uring`, and shared-nothing sharding.
+**QuineDB** is a high-performance, distributed, in-memory key-value store built with modern C++ (C++20). It is designed to demonstrate advanced systems programming concepts, including thread-per-core architecture, asynchronous I/O with `io_uring`, and shared-nothing sharding.
 
 ## Features
 *   **High Performance Architecture**:
     *   **Thread-per-core**: Each core manages its own shard of data, eliminating lock contention on the data path.
     *   **Shared-Nothing**: No shared memory between cores; strict partitioning.
-    *   **Asynchronous I/O**: Built on `io_uring` (Linux) for high-throughput non-blocking I/O (with fallback to `kqueue` mock for macOS/BSD compatibility).
+    *   **Asynchronous I/O**: Built on `io_uring` (Linux) for high-throughput non-blocking I/O (with fallback to `kqueue` mock for macOS/BSD development).
 
 *   **Redis-Compatible Protocol (RESP)**:
     *   Connect using any standard Redis client (e.g., `redis-cli`, `redis-py`).
 
 *   **Rich Data Structures**:
     *   **Strings**: `SET`, `GET`, `INCR`, `DECR`, `DEL`
-    *   **Lists**: `LPUSH`, `RPUSH`, `LPOP`, `RPOP`, `LRANGE`
-    *   **Sets**: `SADD`, `SREM`, `SMEMBERS`, `SISMEMBER`
-    *   **Hashes**: `HSET`, `HGET`, `HGETALL`, `HDEL`
+    *   **Lists**: `LPUSH`, `RPUSH`, `LPOP`, `RPOP`, `LRANGE`, `LLEN`
+    *   **Sets**: `SADD`, `SREM`, `SMEMBERS`, `SISMEMBER`, `SCARD`
+    *   **Hashes**: `HSET`, `HGET`, `HGETALL`, `HDEL`, `HLEN`
     *   **Sorted Sets**: `ZADD`, `ZREM`, `ZSCORE`, `ZCARD`, `ZRANGE` (with `WITHSCORES`)
 
 *   **Advanced Features**:
@@ -26,8 +26,8 @@
 ## Building QuineDB
 
 ### Prerequisites
-*   C++17 compliant compiler (GCC 9+, Clang 10+)
-*   CMake 3.10+
+*   C++20 compliant compiler (GCC 11+, Clang 13+)
+*   CMake 3.20+
 *   Linux (recommended for `io_uring`) or macOS.
 
 ### Build Instructions
@@ -80,6 +80,50 @@ SAVE
 # Data saved to data/dump.rdb
 ```
 
+## Testing & Benchmarks
+
+QuineDB comes with a comprehensive suite of unit tests and benchmarks.
+
+**Running Unit Tests** (requires GoogleTest)
+```bash
+# Build tests
+cmake --build build --target unit_tests
+# Run
+./build/bin/unit_tests
+```
+
+**Running Benchmarks** (requires Google Benchmark)
+```bash
+# Build benchmarks
+cmake --build build --target benchmarks
+# Run
+./build/bin/benchmarks
+```
+
+## Deployment
+
+### Docker
+QuineDB is available as a Docker image.
+
+**Pull from GitHub Container Registry:**
+```bash
+docker pull ghcr.io/ichbingautam/quinedb:latest
+docker run -p 6379:6379 ghcr.io/ichbingautam/quinedb:latest
+```
+
+### Kubernetes
+Exaple manifests are available in `k8s/`.
+
+```bash
+kubectl apply -f k8s/statefulset.yaml
+kubectl apply -f k8s/service.yaml
+```
+
+### Render
+QuineDB is configured for deployment on [Render](https://render.com).
+Simply connect this repository to Render and use the provided `blueprint`.
+The `render.yaml` configuration sets up a **Private TCP Service** with persistent disk storage.
+
 ## Architecture
 
 ### Thread-per-Core
@@ -92,6 +136,13 @@ When a client connects to any core, QuineDB's internal Router determines which s
 
 ### Persistence
 The `RdbManager` handles snapshotting the in-memory state to disk in a format compatible with Redis RDB (v1), ensuring data durability across restarts.
+
+## CI/CD Pipeline
+
+The project uses GitHub Actions for a robust CI/CD workflow (`.github/workflows/c-cpp.yml`):
+*   **Linting**: Enforced via `clang-format`.
+*   **Safety**: Runs AddressSanitizer (ASan), ThreadSanitizer (TSan), and UndefinedBehaviorSanitizer (UBSan).
+*   **Release**: Automated Docker builds and GHCR publishing on release tags (`v*`).
 
 ## Roadmap
 
