@@ -1,0 +1,25 @@
+services:
+  # Internal Private Service (TCP Database)
+  - type: pserv
+    name: quine-db
+    env: docker
+    plan: starter # Private services start at $5/mo (needed for TCP persistence)
+    region: oregon
+    numInstances: 1
+    healthCheckPath: / # Note: TCP health checks aren't fully standard in blueprints yet, but this is required field sometimes.
+    disk:
+      name: quine-data
+      mountPath: /app/data # Persist RDB snapshots here
+      sizeGB: 1
+    envVars:
+      - key: QUINE_PORT
+        value: 6379
+    # Port to expose internally
+    port: 6379
+
+  # Optional: Client/Debug Web Service (to verify connectivity)
+  # - type: web
+  #   name: quine-client
+  #   env: docker
+  #   plan: free
+  #   dockerCommand: ./build/bin/quine-cli # Example capability
