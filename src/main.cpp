@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <iostream>
 #include <thread>
 #include <unordered_map>
@@ -128,6 +129,13 @@ int main(int argc, char* argv[]) {
   (void)argv;
   // 1. Load Configuration
   quine::core::Config config;
+
+  // Read port from environment variables (Priority: QUINE_PORT > PORT > Config Default)
+  if (const char* env_quine_port = std::getenv("QUINE_PORT")) {
+    config.port = std::stoi(env_quine_port);
+  } else if (const char* env_port = std::getenv("PORT")) {
+    config.port = std::stoi(env_port);
+  }
 
   unsigned int n_threads =
       config.worker_threads > 0 ? config.worker_threads : std::thread::hardware_concurrency();

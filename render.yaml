@@ -6,7 +6,7 @@ services:
     plan: starter # Private services start at $5/mo (needed for TCP persistence)
     region: oregon
     numInstances: 1
-    healthCheckPath: / # Note: TCP health checks aren't fully standard in blueprints yet, but this is required field sometimes.
+    # healthCheckPath: / # Note: TCP health checks aren't fully standard in blueprints yet, but this is required field sometimes.
     disk:
       name: quine-data
       mountPath: /app/data # Persist RDB snapshots here
